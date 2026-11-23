@@ -31,14 +31,15 @@ const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(
  * Envía el formulario de la página como lo haría un navegador sin JS:
  * los campos ocultos de React ($ACTION_*) + los nuestros, en multipart.
  */
-export async function submitForm(path, cookie, fields) {
+export async function submitForm(path, cookie, fields, { contains } = {}) {
   const html = await (await visit(path, cookie)).text();
   // El formulario que tiene el primer campo que enviamos (la barra lateral
-  // también tiene uno: cerrar sesión).
+  // también tiene uno: cerrar sesión) y, si se indica, cierto texto (varios
+  // formularios de la página pueden tener los mismos campos).
   const key = Object.keys(fields)[0];
   const form = [...html.matchAll(/<form[^>]*>([\s\S]*?)<\/form>/g)]
     .map((m) => m[1])
-    .find((f) => f.includes(`name="${key}"`));
+    .find((f) => f.includes(`name="${key}"`) && (!contains || f.includes(contains)));
   if (!form) throw new Error(`sin formulario con ${key} en ${path}`);
   const body = new FormData();
   for (const m of form.matchAll(/<input([^>]*)>/g)) {

@@ -235,6 +235,38 @@ ok(await err(`select public.create_court_block($1, null, '2027-03-02Z', '2027-03
 await as(pb);
 ok(await err(`select public.create_court_block($1, null, '2027-03-01Z', '2027-03-02Z', 'x')`, [A]) === "42501", "admin/jugador de otro club no bloquea");
 
+console.log("\n# paso 4: grupos y publicación de rondas");
+await as(admin);
+ok(await err(`insert into rounds (club_id, tournament_id, number, name, starts_on, ends_on, results_deadline) values ($1,$2,2,'Marzo','2027-03-01','2027-03-31','2027-03-31 20:00Z')`, [A, t.id]) === "23505", "una sola ronda abierta por torneo");
+const [t2] = await q(`insert into tournaments (club_id, name, type, status) values ($1, 'RR', 'round_robin', 'registration') returning id`, [A]);
+const ent = async (pid, status) => (await q(`insert into tournament_entries (club_id, tournament_id, player_id, status) values ($1,$2,$3,$4) returning id`, [A, t2.id, pid, status]))[0].id;
+const [x1, x2, x3, xp] = [await ent(p1, "accepted"), await ent(p2, "accepted"), await ent(p3, "accepted"), await ent(sneaky, "pending")];
+const [r2] = await q(`insert into rounds (club_id, tournament_id, number, name, starts_on, ends_on, results_deadline) values ($1,$2,1,'Única','2027-02-01','2027-02-28','2027-02-28 20:00Z') returning id`, [A, t2.id]);
+const groups = (gs) => JSON.stringify(gs.map((entries, i) => ({ level: i + 1, entries })));
+const save = (gs) => q(`select public.save_round_groups($1, $2)`, [r2.id, groups(gs)]);
+ok(await err(`select public.save_round_groups($1, $2)`, [r2.id, groups([[x1, xp]])]) === "22023", "no acepta inscripciones pendientes en un grupo");
+await save([[x1, x2, x3]]);
+ok((await q(`select count(*)::int n from group_members where round_id=$1`, [r2.id]))[0].n === 3, "save_round_groups guarda el grupo");
+await save([[x2, x1], [x3]]);
+const gm = await q(`select g.level, m.entry_id, m.position from group_members m join groups g on g.id=m.group_id where m.round_id=$1 order by g.level, m.position`, [r2.id]);
+ok(gm.length === 3 && gm[0].entry_id === x2 && gm[0].position === 1 && gm[2].level === 2, "y los reemplaza, con la siembra en orden");
+ok(await err(`select public.save_round_groups($1, $2)`, [r2.id, groups([[x1, x2], [x2, x3]])]) === "23505", "un jugador en dos grupos → rechazado");
+ok(await err(`select public.publish_round($1)`, [r2.id]) === "55000", "no publica con un grupo de 1");
+await as(p1);
+ok(await err(`select public.save_round_groups($1, '[]')`, [r2.id]) === "42501", "un jugador no arma grupos");
+ok(await err(`select public.publish_round($1)`, [r2.id]) === "42501", "un jugador no publica rondas");
+await as(admin);
+await save([[x1, x2, x3], []]);
+ok((await q(`select public.publish_round($1) n`, [r2.id]))[0].n === 3, "publicar: grupo de 3 → 3 partidos");
+ok((await q(`select count(*)::int n from groups where round_id=$1`, [r2.id]))[0].n === 1, "los grupos vacíos se eliminan al publicar");
+const pub = (await q(`select r.status, t.status ts from rounds r join tournaments t on t.id=r.tournament_id where r.id=$1`, [r2.id]))[0];
+ok(pub.status === "active" && pub.ts === "active", "la ronda queda activa y el torneo en curso");
+ok((await q(`select count(*)::int n from matches where round_id=$1 and entry_a=$2`, [r2.id, x1]))[0].n === 2, "entry_a es el de mejor siembra");
+ok(await err(`select public.save_round_groups($1, '[]')`, [r2.id]) === "55000", "una ronda publicada no cambia de grupos");
+ok(await err(`select public.publish_round($1)`, [r2.id]) === "55000", "ni se publica dos veces");
+await as(p1);
+ok((await q(`select id from matches where round_id=$1`, [r2.id])).length === 3, "el jugador ve los partidos publicados");
+
 console.log("\n# sesiones");
 await reset();
 await q(`insert into auth.sessions (user_id) values ($1), ($1)`, [p1]);

@@ -97,7 +97,7 @@ tiebreakers: ['points','head_to_head','sets_diff','games_diff','matches_played']
 Todo se edita desde el formulario del torneo. El round robin usa el mismo motor, con `promote/relegate = 0` y una sola ronda (o fase de grupos más playoff en la Fase 2).
 
 **Archivos:**
-- `round-robin.ts`: genera los cruces de un grupo (método del círculo; 5 jugadores → 10 partidos, 4 por jugador).
+- Cruces del round robin: los genera `publish_round` en SQL (todos contra todos; 5 jugadores → 10 partidos, 4 por jugador). En la escalera los partidos del mes se juegan en cualquier orden, así que no hace falta calendario por jornadas.
 - `scoring.ts`: valida el marcador (2-0/2-1, sets sin ventaja, TB a 10) y calcula los puntos del partido + el bonus por semana. El bonus depende de la fecha jugada (`scheduled_at`) respecto a `round.starts_on`, va para ambos jugadores, y no aplica al ganador por default.
 - `standings.ts`: tabla del grupo con los desempates configurables.
 - `ladder.ts`: al cerrar la ronda calcula ascensos y descensos (grupo 1 no asciende, el último grupo no desciende) y arma los grupos de la siguiente ronda. Resuelve también las bajas: inactivos 2 rondas → `expelled`, y el hueco se rellena subiendo al siguiente. Los nuevos inscritos entran al grupo más bajo. Si el número de jugadores no es múltiplo de 5, el último grupo queda de 4 o 6 (configurable).
@@ -193,7 +193,7 @@ Crons por pg_cron → `/api/cron/*`: recordatorios de partido (24 h / 2 h), reco
   - `lib/notifications/{email,whatsapp,push}.ts`, con las plantillas de WhatsApp del torneo.
   - `lib/stripe/client.ts`, `lib/pwa/*`, `lib/availability/tz.ts`, `components/ui/*`, `app/auth/{callback,confirm}`, PWA (`public/sw.js`, manifest) y `qa/lib.mjs`.
 - [X] Migraciones §4 con RLS + GRANTs explícitos + storage + semilla de planes. Validadas con `npm run db:check` (52/52) y aplicadas al proyecto `pjyleuqzqwzhsmrphyxf`. La prueba con usuarios reales `./qa/run.sh fase0-smoke` pasa 15/15.
-- [X] `lib/supabase/database.types.ts`: generado desde el proyecto real. Se regenera con `npm run db:types`, que conserva los alias del final.
+- [X] `lib/supabase/database.types.ts`: generado desde el proyecto real. Se regenera con `npm run db:types`, que conserva los alias del final. Ojo: el generador no marca argumentos de RPC que aceptan null; tras regenerar, devolver `| null` a `p_court` y `p_reason` de `create_court_block` (el typecheck lo avisa).
 - [X] `npm run typecheck`, `lint` y `build` en verde (el build requiere las variables de `.env.example`).
 - [X] Proyecto Supabase creado, enlazado y con las migraciones aplicadas. Ojo: `db push` necesita `--remote`, porque sin él la CLI apunta al stack local.
 - [X] Repo en GitHub (`wizekod/raquetaclub`).
@@ -226,7 +226,30 @@ Quedan pendientes de copiar, cada uno junto con la feature que lo usa en la Fase
   - `lib/courts/availability.ts`: slots libres (horario − bloqueos − reservas), lógica pura con tests (`npm test`, vitest). La usará el link de partido en el paso 5.
   - Las páginas de `/club/*` usan `requireMyClub()`: Next renderiza el layout y la página en paralelo, así que el redirect del layout no basta.
   - QA: `./qa/run.sh canchas` (22 checks), con rechazo `RC409` de una reserva dentro de un bloqueo.
-- [ ] 4. Torneos + motor `lib/tournaments/*` con tests
+- [X] 4. Torneos + motor `lib/tournaments/*` con tests.
+  - Motor (lógica pura, `npm test`):
+    - `config.ts`: Zod con los defaults de las bases; `parseConfig` tolera JSON incompleto.
+    - `scoring.ts`: marcador (2-0/2-1, TB a 10), puntos y bonus por semana.
+    - `standings.ts`: tabla con desempates por bloques.
+    - `ladder.ts`: tamaños de grupo, sugerencia por siembra, movimientos, siguiente ronda, baja por inactividad.
+    - `rounds.ts`: ronda mensual con fecha límite en la zona del club.
+    - `awards.ts`: premios de temporada.
+  - Base (`…_tournament_rounds.sql`):
+    - una sola ronda abierta por torneo;
+    - `save_round_groups` (solo inscripciones aceptadas, solo en borrador);
+    - `publish_round` (genera los partidos, activa la ronda y pone el torneo en curso).
+    - Ambas INVOKER.
+  - `/club/torneos`:
+    - crear torneo (escalera o round robin);
+    - datos, estado e inscripción;
+    - reglamento en texto o PDF (`components/media/pdf-field.tsx`);
+    - reglas de puntuación;
+    - inscripciones: aceptar o rechazar, siembra, baja, inscribir desde el panel;
+    - rondas.
+  - Ronda: grupos sugeridos por siembra o a mano (un select por jugador, sin JS), publicar, y vista de grupos y partidos.
+  - `/jugador/torneos`: inscribirse, reglamento, su grupo y sus partidos de la ronda activa.
+  - Pendiente para los pasos 6-7: cerrar la ronda (snapshots + `buildNextRound` para el borrador de la siguiente). Hasta entonces no se puede crear la ronda 2.
+  - QA: `./qa/run.sh torneos` (36 checks). `submitForm` acepta `{ contains }` para elegir entre formularios con los mismos campos. Ojo: `group_members` tiene dos FK a `groups`, así que no se puede embeber con PostgREST sin desambiguar.
 - [ ] 5. Link de partido: propuesta/aceptación + reserva (RPCs)
 - [ ] 6. Resultados: reportar / confirmar / disputar / corregir
 - [ ] 7. Rankings

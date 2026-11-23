@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { getProfile } from "@/lib/auth/dal";
 import { getMyClub } from "@/lib/clubs/queries";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,7 +29,10 @@ export default async function JugadorHomePage() {
           <CardTitle>Tus partidos</CardTitle>
           <CardDescription>
             Cuando {club.name} publique los grupos de un torneo en el que estés inscrito, aquí verás tus
-            rivales, podrás agendar la cancha y subir los resultados.
+            rivales, podrás agendar la cancha y subir los resultados.{" "}
+            <Link href="/jugador/torneos" className="font-medium text-foreground underline underline-offset-4">
+              Ver torneos
+            </Link>
           </CardDescription>
         </CardHeader>
       </Card>

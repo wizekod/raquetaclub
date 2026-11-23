@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Home, UserRound } from "lucide-react";
+import { Home, Trophy, UserRound } from "lucide-react";
 
 import { requireRole } from "@/lib/auth/dal";
 import { pwaMetadata } from "@/lib/pwa/metadata";
@@ -9,9 +9,10 @@ import { fullName } from "@/lib/utils";
 import { PanelShell, type NavItem } from "@/components/dashboard/panel-shell";
 import { PushSync } from "@/components/account/push-sync";
 
-// Mis partidos, Torneos y Rankings se suman en los pasos 4-7.
+// Mis partidos y Rankings se suman en los pasos 5-7.
 const NAV: NavItem[] = [
   { href: "/jugador", label: "Inicio", icon: Home },
+  { href: "/jugador/torneos", label: "Torneos", icon: Trophy },
   { href: "/jugador/cuenta", label: "Mi cuenta", icon: UserRound },
 ];
 

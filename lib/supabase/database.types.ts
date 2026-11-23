@@ -1157,8 +1157,13 @@ export type Database = {
       is_superadmin: { Args: never; Returns: boolean }
       owns_media_path: { Args: { object_name: string }; Returns: boolean }
       phone_key: { Args: { dial: string; raw: string }; Returns: string }
+      publish_round: { Args: { p_round: string }; Returns: number }
       revoke_user_sessions: { Args: { p_user_id: string }; Returns: undefined }
       round_is_visible: { Args: { p_round: string }; Returns: boolean }
+      save_round_groups: {
+        Args: { p_groups: Json; p_round: string }
+        Returns: undefined
+      }
       set_court_hours: {
         Args: { p_court: string; p_hours: Json }
         Returns: undefined
@@ -1376,3 +1381,6 @@ export type ClubRow = Tables<"clubs">
 export type CourtRow = Tables<"courts">
 export type TournamentRow = Tables<"tournaments">
 export type MatchRow = Tables<"matches">
+export type RoundRow = Tables<"rounds">
+export type EntryStatus = Enums<"entry_status">
+export type TournamentStatus = Enums<"tournament_status">
