@@ -51,6 +51,11 @@ export default async function TorneoPage({ params }: { params: Promise<{ id: str
         <p className="text-sm text-muted-foreground">
           {TYPE_LABEL[tournament.type]} · {SPORT_LABEL[tournament.sport]} · {STATUS_LABEL[tournament.status]}
         </p>
+        {rounds.some((r) => r.status !== "draft") ? (
+          <Link href={`/club/torneos/${id}/ranking`} className="mt-2 inline-block text-sm font-medium underline underline-offset-4">
+            {tournament.type === "ladder" ? "Ver escalera e historial" : "Ver clasificación"}
+          </Link>
+        ) : null}
       </div>
 
       {/* ───────────── inscripciones ───────────── */}

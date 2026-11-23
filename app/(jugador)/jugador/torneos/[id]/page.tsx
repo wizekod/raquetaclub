@@ -44,6 +44,18 @@ export default async function JugadorTorneoPage({ params }: { params: Promise<{ 
           {TYPE_LABEL[t.type]} · {STATUS_LABEL[t.status]}
           {t.entry ? ` · Tu inscripción: ${ENTRY_STATUS_LABEL[t.entry.status]}` : ""}
         </p>
+        {t.status === "active" || t.status === "finished" ? (
+          <div className="mt-2 flex flex-wrap gap-x-4 text-sm font-medium">
+            <Link href={`/jugador/torneos/${t.id}/ranking`} className="underline underline-offset-4">
+              {t.type === "ladder" ? "Escalera completa" : "Clasificación"}
+            </Link>
+            {t.entry ? (
+              <Link href={`/jugador/torneos/${t.id}/ranking/${t.entry.id}`} className="underline underline-offset-4">
+                Mi historial
+              </Link>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       {!t.entry && t.registration_open ? (

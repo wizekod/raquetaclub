@@ -278,7 +278,14 @@ Quedan pendientes de copiar, cada uno junto con la feature que lo usa en la Fase
     - "Cerrar ronda" en la ronda del admin.
   - El cierre automático en la fecha límite y la autoconfirmación a las 48 h van con los crons del paso 8.
   - QA: `./qa/run.sh resultados` (26 checks).
-- [ ] 7. Rankings
+- [X] 7. Rankings (sin migración).
+  - `lib/tournaments/history.ts` (lógica pura con tests): `ladderOrder` (posición global), `buildHistory` (grupo por ronda: snapshots más el grupo vigente) y `entryRecord` (G/P, defaults, no jugados, H2H).
+  - `lib/tournaments/ranking.ts`: `getRanking` (ronda publicada más reciente, tablas, historial, premios con `awards.ts`) y `getEntryProfile`. No muestra rondas en borrador, ni al admin.
+  - Vistas compartidas (`components/tournaments/{ranking-view,entry-profile-view}.tsx`) en `/club/torneos/[id]/ranking[/entryId]` y `/jugador/torneos/[id]/ranking[/entryId]`.
+    - Escalera: premios, grupos con su rango en la escalera e historial con flechas.
+    - Perfil: récord, por ronda, partidos y cara a cara.
+  - Jugador: "Rankings" en el menú; "Escalera completa" y "Mi historial" en su torneo.
+  - QA: sección "rankings" en `./qa/run.sh resultados` (35 checks en total).
 - [ ] 8. Notificaciones + cron
 - [ ] 9. Superadmin + Stripe
 - [ ] 10. QA E2E + deploy

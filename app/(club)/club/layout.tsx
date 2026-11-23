@@ -10,7 +10,6 @@ import { fullName } from "@/lib/utils";
 import { PanelShell, type NavItem } from "@/components/dashboard/panel-shell";
 import { PushSync } from "@/components/account/push-sync";
 
-// Rankings se suma en el paso 7.
 const NAV: NavItem[] = [
   { href: "/club", label: "Inicio", icon: Home },
   { href: "/club/torneos", label: "Torneos", icon: Trophy },

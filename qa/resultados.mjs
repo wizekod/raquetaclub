@@ -1,6 +1,7 @@
 /**
  * Paso 6 de la Fase 1: resultados (reportar, confirmar, disputar, corregir)
- * y cierre de ronda con la escalera, contra la app + Supabase real.
+ * y cierre de ronda con la escalera, y los rankings (paso 7), contra la app
+ * + Supabase real.
  *
  *   QA_APP_URL=http://localhost:3100 ./qa/run.sh resultados
  */
@@ -116,6 +117,24 @@ try {
   const closed = await text(await visit(roundPage, admin));
   ok(closed.includes('aria-label="Sube"') && closed.includes('aria-label="Baja"') && !closed.includes("Corregir"), "la ronda cerrada muestra la tabla congelada con movimientos");
   ok(!(await text(await visit(p(mAB), admin))).includes("Corregir resultado"), "ya no se corrigen resultados de una ronda cerrada");
+
+  section("rankings (paso 7)");
+  const rankAdmin = `/club/torneos/${t.id}/ranking`;
+  let page = await text(await visit(rankAdmin, admin));
+  ok(page.includes("Escalera") && page.includes("Más consistente") && page.includes("Posiciones 1–3 de la escalera"), "escalera con premios y posición global");
+  ok(page.includes("1 veces 1.º del grupo 1"), "premio al más consistente con su conteo");
+  // Publicar la ronda 2: la escalera pasa a la ronda vigente y aparece el historial.
+  r = await submitForm(`/club/torneos/${t.id}/rondas/${r2.id}`, admin, { roundId: r2.id }, { contains: "Publicar" });
+  ok((await text(r)).includes("Ronda publicada"), "publica la ronda 2");
+  page = await text(await visit(`/jugador/torneos/${t.id}/ranking`, ck[D]));
+  ok(page.includes("Historial") && page.includes("Dani QA") && page.includes("G2") && page.includes('aria-label="Sube"'), "el jugador ve el historial de grupos con movimientos");
+  ok(page.includes("bg-primary/5"), "con su fila resaltada");
+  const prof = await text(await visit(`/jugador/torneos/${t.id}/ranking/${entries[A]}`, ck[B]));
+  ok(prof.includes("Ana QA") && prof.includes("Cara a cara") && prof.includes("Beto QA") && prof.includes("6-4 6-3"), "perfil de un jugador: partidos y H2H");
+  ok(/Ganados<\/p><p[^>]*>2</.test(prof), "récord: 2 ganados");
+  ok((await text(await visit(`/jugador/rankings`, ck[A]))).includes("Escalera QA"), "lista de rankings del jugador");
+  const draftT = await insert("tournaments", { club_id: club.id, name: "Borrador QA", type: "ladder" });
+  ok((await visit(`/jugador/torneos/${draftT.id}/ranking`, ck[A])).status === 404, "un torneo en borrador no tiene ranking visible");
 } finally {
   for (const id of created) await deleteUser(id);
   await deleteClub(slug);

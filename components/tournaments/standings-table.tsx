@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ArrowDown, ArrowUp, Minus, X } from "lucide-react";
 
 import type { TableRow } from "@/lib/tournaments/queries";
@@ -10,8 +11,17 @@ const MOVE = {
   out: { icon: X, label: "Baja del torneo", className: "text-muted-foreground" },
 } as const;
 
-/** Tabla de un grupo. `highlight` = entry a resaltar (el jugador en sesión). */
-export function StandingsTable({ rows, highlight }: { rows: TableRow[]; highlight?: string | null }) {
+export function MoveIcon({ movement, className }: { movement: keyof typeof MOVE | null; className?: string }) {
+  if (!movement) return null;
+  const mv = MOVE[movement];
+  return <mv.icon aria-label={mv.label} className={cn("size-4", mv.className, className)} />;
+}
+
+/**
+ * Tabla de un grupo. `highlight` = entry a resaltar (el jugador en sesión);
+ * `linkBase` enlaza cada nombre a `${linkBase}/${entry_id}` (perfil).
+ */
+export function StandingsTable({ rows, highlight, linkBase }: { rows: TableRow[]; highlight?: string | null; linkBase?: string }) {
   const showMoves = rows.some((r) => r.movement);
   return (
     <div className="overflow-x-auto">
@@ -31,11 +41,18 @@ export function StandingsTable({ rows, highlight }: { rows: TableRow[]; highligh
         </thead>
         <tbody>
           {rows.map((r) => {
-            const mv = r.movement ? MOVE[r.movement] : null;
             return (
               <tr key={r.entry_id} className={cn("border-b border-border last:border-0", r.entry_id === highlight && "bg-primary/5 font-medium")}>
                 <td className="py-1.5 pr-2 tabular-nums">{r.position}</td>
-                <td className="py-1.5 pr-2">{r.name}</td>
+                <td className="py-1.5 pr-2">
+                  {linkBase ? (
+                    <Link href={`${linkBase}/${r.entry_id}`} className="hover:underline">
+                      {r.name}
+                    </Link>
+                  ) : (
+                    r.name
+                  )}
+                </td>
                 <td className="px-1 py-1.5 text-right tabular-nums">{r.played + r.won_default}</td>
                 <td className="px-1 py-1.5 text-right tabular-nums">
                   {r.won + r.won_default}
@@ -52,7 +69,7 @@ export function StandingsTable({ rows, highlight }: { rows: TableRow[]; highligh
                 <td className="py-1.5 pl-1 text-right font-semibold tabular-nums">{Number.isInteger(r.points) ? r.points : r.points.toFixed(2)}</td>
                 {showMoves ? (
                   <td className="pl-2">
-                    {mv ? <mv.icon aria-label={mv.label} className={cn("size-4", mv.className)} /> : null}
+                    <MoveIcon movement={r.movement} />
                   </td>
                 ) : null}
               </tr>
