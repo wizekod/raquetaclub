@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { getMyClub } from "@/lib/clubs/queries";
+import { requireMyClub } from "@/lib/clubs/queries";
 import { getProfile } from "@/lib/auth/dal";
 import { listClubMembers } from "@/lib/players/queries";
 import { expectedPhoneDigits } from "@/lib/players/phone";
@@ -11,7 +11,7 @@ import { MemberActions } from "./member-actions";
 export const metadata: Metadata = { title: "Jugadores · RaquetaClub" };
 
 export default async function JugadoresPage() {
-  const club = (await getMyClub())!;
+  const club = await requireMyClub();
   const me = await getProfile();
   const members = await listClubMembers(club.id);
   const digits = expectedPhoneDigits(club.phone_country_code);

@@ -1,13 +1,13 @@
 import Link from "next/link";
 
-import { getMyClub } from "@/lib/clubs/queries";
+import { requireMyClub } from "@/lib/clubs/queries";
 import { clientEnv } from "@/lib/env";
 import { listClubMembers } from "@/lib/players/queries";
 import { CopyButton } from "@/components/copy-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function ClubHomePage() {
-  const club = (await getMyClub())!;
+  const club = await requireMyClub();
   const members = await listClubMembers(club.id);
   const players = members.filter((m) => m.role === "player");
   const active = players.filter((p) => p.status === "active" && !p.pending).length;

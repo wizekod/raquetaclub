@@ -83,7 +83,9 @@ try {
     if (name) body.append(name.replace(/&quot;/g, '"'), value);
   }
   body.set("name", "Hackeado por jugador");
-  await fetch(`${APP}/jugador`, { method: "POST", body, redirect: "manual", headers: { cookie: player, origin: APP } });
+  // A la misma página: así la acción sí se ejecuta (en otra ruta Next ni la
+  // encuentra) y lo que se prueba es su propia autorización.
+  await fetch(`${APP}/club/configuracion`, { method: "POST", body, redirect: "manual", headers: { cookie: player, origin: APP } });
   ok((await club(slug2)).name !== "Hackeado por jugador", "la acción rechaza a un jugador");
 
   section("QR de registro");

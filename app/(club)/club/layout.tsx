@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { Home, Settings, UserRound, Users } from "lucide-react";
+import { CalendarDays, CalendarOff, Home, LayoutGrid, Settings, UserRound, Users } from "lucide-react";
 
 import { requireRole } from "@/lib/auth/dal";
 import { pwaMetadata } from "@/lib/pwa/metadata";
@@ -10,10 +10,13 @@ import { fullName } from "@/lib/utils";
 import { PanelShell, type NavItem } from "@/components/dashboard/panel-shell";
 import { PushSync } from "@/components/account/push-sync";
 
-// Canchas, Torneos y Rankings se suman en los pasos 3-7.
+// Torneos y Rankings se suman en los pasos 4-7.
 const NAV: NavItem[] = [
   { href: "/club", label: "Inicio", icon: Home },
+  { href: "/club/calendario", label: "Calendario", icon: CalendarDays },
   { href: "/club/jugadores", label: "Jugadores", icon: Users },
+  { href: "/club/canchas", label: "Canchas", icon: LayoutGrid },
+  { href: "/club/bloqueos", label: "Bloquear horarios", icon: CalendarOff },
   { href: "/club/configuracion", label: "Configuración", icon: Settings },
   { href: "/club/cuenta", label: "Mi cuenta", icon: UserRound },
 ];

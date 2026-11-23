@@ -1,6 +1,7 @@
 import "server-only";
 
 import { cache } from "react";
+import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -20,6 +21,17 @@ export const getMyClub = cache(async (): Promise<ClubRow | null> => {
     .maybeSingle();
   return data;
 });
+
+/**
+ * Club del usuario actual para las páginas de `/club/*`. Next renderiza el
+ * layout y la página en paralelo, así que el `redirect` del layout no evita
+ * que la página corra: cada página necesita su propia guarda.
+ */
+export async function requireMyClub(): Promise<ClubRow> {
+  const club = await getMyClub();
+  if (!club) redirect("/onboarding");
+  return club;
+}
 
 /**
  * Club del usuario actual **sólo si es su administrador activo**.

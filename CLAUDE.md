@@ -218,7 +218,14 @@ Quedan pendientes de copiar, cada uno junto con la feature que lo usa en la Fase
   - Administradores: el alta en Jugadores tiene rol Jugador o Administrador, y en la lista hay "Hacer admin" / "Quitar admin" (`setMemberRole`, con service_role).
   - Base (`…_club_settings_guards.sql`): cambiar la lada recalcula el `phone_key` de los miembros, y la base impide dejar un club sin admin activo (`RC422`, también para service_role).
   - QA: `./qa/run.sh club-config` (20 checks). Los helpers de la app están en `qa/app.mjs`.
-- [ ] 3. Canchas: CRUD, horario, bloqueos, calendario
+- [X] 3. Canchas: CRUD, horario, bloqueos, calendario.
+  - `/club/canchas`: alta (copia el horario de las demás canchas, o 07–22 todos los días), nombre, deporte, superficie, activa, y borrar solo si nunca tuvo reservas. Editor de horario semanal con varias franjas por día y "aplicar a todas las canchas".
+  - `/club/bloqueos`: bloqueo de una cancha o de todas. Si choca con partidos agendados, primero avisa cuántos son; al confirmar, cancela las reservas y regresa los partidos a "por agendar".
+  - `/club/calendario`: rejilla del día por cancha, con horario, bloqueos y reservas (con los nombres de los jugadores). Usa `?fecha=AAAA-MM-DD`.
+  - Base (`…_courts_hours_blocks.sql`): franjas sin encimarse y las RPCs `set_court_hours` y `create_court_block`, ambas INVOKER (con la RLS del admin).
+  - `lib/courts/availability.ts`: slots libres (horario − bloqueos − reservas), lógica pura con tests (`npm test`, vitest). La usará el link de partido en el paso 5.
+  - Las páginas de `/club/*` usan `requireMyClub()`: Next renderiza el layout y la página en paralelo, así que el redirect del layout no basta.
+  - QA: `./qa/run.sh canchas` (22 checks), con rechazo `RC409` de una reserva dentro de un bloqueo.
 - [ ] 4. Torneos + motor `lib/tournaments/*` con tests
 - [ ] 5. Link de partido: propuesta/aceptación + reserva (RPCs)
 - [ ] 6. Resultados: reportar / confirmar / disputar / corregir

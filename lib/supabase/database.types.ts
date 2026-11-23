@@ -1135,6 +1135,17 @@ export type Database = {
     Functions: {
       can_manage_club: { Args: { p_club: string }; Returns: boolean }
       can_read_club: { Args: { p_club: string }; Returns: boolean }
+      create_court_block: {
+        Args: {
+          p_cancel?: boolean
+          p_club: string
+          p_court: string | null
+          p_end: string
+          p_reason: string | null
+          p_start: string
+        }
+        Returns: Json
+      }
       current_club_id: { Args: never; Returns: string }
       current_entry_ids: { Args: never; Returns: string[] }
       current_user_role: {
@@ -1148,6 +1159,10 @@ export type Database = {
       phone_key: { Args: { dial: string; raw: string }; Returns: string }
       revoke_user_sessions: { Args: { p_user_id: string }; Returns: undefined }
       round_is_visible: { Args: { p_round: string }; Returns: boolean }
+      set_court_hours: {
+        Args: { p_court: string; p_hours: Json }
+        Returns: undefined
+      }
       shares_match_with: { Args: { p_profile: string }; Returns: boolean }
     }
     Enums: {

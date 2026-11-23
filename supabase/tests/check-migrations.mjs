@@ -201,6 +201,40 @@ await as(admin);
 // Rechazado por la guarda de último admin (RC422) o la de estado propio (42501).
 ok(["RC422", "42501"].includes(await err(`update profiles set status='inactive' where id=$1`, [admin])), "un admin no se da de baja a sí mismo");
 
+console.log("\n# paso 3: horario y bloqueos");
+await as(admin);
+await q(`select public.set_court_hours($1, $2)`, [c1.id, JSON.stringify([
+  { day_of_week: 1, open_time: "07:00", close_time: "14:00" },
+  { day_of_week: 1, open_time: "16:00", close_time: "22:00" },
+  { day_of_week: 2, open_time: "07:00", close_time: "22:00" },
+])]);
+ok((await q(`select count(*)::int n from court_hours where court_id=$1`, [c1.id]))[0].n === 3, "set_court_hours guarda las franjas");
+await q(`select public.set_court_hours($1, $2)`, [c1.id, JSON.stringify([{ day_of_week: 3, open_time: "08:00", close_time: "20:00" }])]);
+ok((await q(`select count(*)::int n from court_hours where court_id=$1`, [c1.id]))[0].n === 1, "y reemplaza las anteriores");
+ok(await err(`select public.set_court_hours($1, $2)`, [c1.id, JSON.stringify([
+  { day_of_week: 1, open_time: "07:00", close_time: "14:00" },
+  { day_of_week: 1, open_time: "13:00", close_time: "18:00" },
+])]) === "23P01", "rechaza franjas encimadas el mismo día");
+ok((await q(`select count(*)::int n from court_hours where court_id=$1`, [c1.id]))[0].n === 1, "y no deja el horario a medias (atómico)");
+await as(p1);
+ok(await err(`select public.set_court_hours($1, '[]')`, [c1.id]) === "42501", "un jugador no cambia horarios");
+ok(await err(`select public.create_court_block($1, null, '2027-03-01Z', '2027-03-02Z', 'x')`, [A]) === "42501", "un jugador no crea bloqueos");
+
+await as(admin);
+await q(`update matches set status='scheduled', scheduled_at='2027-02-05 15:00Z' where id=$1`, [m.id]);
+let res = (await q(`select public.create_court_block($1, $2, '2027-02-05 14:00Z', '2027-02-05 20:00Z', 'Evento privado') r`, [A, c1.id]))[0].r;
+ok(res.conflicts === 1 && res.block_id === null, "bloqueo sobre un partido agendado: sólo avisa");
+ok((await q(`select status from court_bookings where match_id=$1`, [m.id]))[0].status === "confirmed", "sin confirmar, la reserva sigue");
+res = (await q(`select public.create_court_block($1, $2, '2027-02-05 14:00Z', '2027-02-05 20:00Z', 'Evento privado', true) r`, [A, c1.id]))[0].r;
+ok(res.cancelled === 1 && res.block_id, "con confirmación cancela y crea el bloqueo");
+const bk = (await q(`select status, cancelled_reason from court_bookings where match_id=$1`, [m.id]))[0];
+ok(bk.status === "cancelled" && bk.cancelled_reason === "Evento privado", "la reserva queda cancelada con el motivo");
+const mm = (await q(`select status, scheduled_at from matches where id=$1`, [m.id]))[0];
+ok(mm.status === "pending" && mm.scheduled_at === null, "el partido vuelve a por agendar");
+ok(await err(`select public.create_court_block($1, null, '2027-03-02Z', '2027-03-01Z', 'x')`, [A]) === "22007", "rechaza un bloqueo que termina antes de empezar");
+await as(pb);
+ok(await err(`select public.create_court_block($1, null, '2027-03-01Z', '2027-03-02Z', 'x')`, [A]) === "42501", "admin/jugador de otro club no bloquea");
+
 console.log("\n# sesiones");
 await reset();
 await q(`insert into auth.sessions (user_id) values ($1), ($1)`, [p1]);
