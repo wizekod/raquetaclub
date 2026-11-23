@@ -139,8 +139,8 @@ try {
     firstName: "Rita", lastName: "Registro", phone: "3344445555", email: `qa-reg-${RUN}@example.com`, password: "Registro-123",
   });
   const regText = await r.text();
-  // Supabase rechaza example.com, o antes corta por su límite de correos/hora:
-  // cualquiera de los dos prueba que el formulario llegó a signUp.
+  // Supabase o el SMTP (Resend) rechazan example.com, o corta el límite de
+  // correos/hora: cualquiera prueba que el formulario llegó a signUp.
   ok(
     regText.includes("no es válido") || regText.includes("correo de confirmación"),
     "registro llega a Supabase y muestra su rechazo",

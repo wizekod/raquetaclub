@@ -199,6 +199,12 @@ function signUpError(error: { code?: string; status?: number; message: string })
     return "No pudimos enviarte el correo de confirmación en este momento. Inténtalo de nuevo en unos minutos.";
   }
   if (error.status === 429) return "Demasiados intentos. Espera unos minutos y vuelve a probar.";
+  // El SMTP (Resend) rechazó el destinatario: dirección inexistente o dominio
+  // que no recibe correo. La cuenta no queda creada.
+  if (/sending confirmation email/i.test(error.message)) {
+    console.error("[auth] signUp: el SMTP rechazó el correo de confirmación");
+    return "No pudimos enviarte el correo de confirmación. Revisa que tu correo esté bien escrito.";
+  }
   console.error("[auth] signUp:", error.message);
   return "No se pudo crear la cuenta.";
 }
