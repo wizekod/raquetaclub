@@ -1133,8 +1133,21 @@ export type Database = {
       }
     }
     Functions: {
+      assert_slot_valid: {
+        Args: {
+          p_court: string
+          p_end: string
+          p_match: Database["public"]["Tables"]["matches"]["Row"]
+          p_start: string
+        }
+        Returns: undefined
+      }
       can_manage_club: { Args: { p_club: string }; Returns: boolean }
       can_read_club: { Args: { p_club: string }; Returns: boolean }
+      cancel_match_booking: {
+        Args: { p_match: string; p_reason: string | null }
+        Returns: undefined
+      }
       create_court_block: {
         Args: {
           p_cancel?: boolean
@@ -1155,9 +1168,53 @@ export type Database = {
       is_club_admin: { Args: { p_club: string }; Returns: boolean }
       is_server_role: { Args: never; Returns: boolean }
       is_superadmin: { Args: never; Returns: boolean }
+      lock_open_match: {
+        Args: { p_match: string }
+        Returns: {
+          admin_override_by: string | null
+          booking_token: string
+          club_id: string
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          dispute_reason: string | null
+          entry_a: string
+          entry_b: string
+          group_id: string | null
+          id: string
+          reported_at: string | null
+          reported_by: string | null
+          result_type: Database["public"]["Enums"]["match_result_type"] | null
+          round_id: string
+          scheduled_at: string | null
+          score: Json | null
+          status: Database["public"]["Enums"]["match_status"]
+          tournament_id: string
+          updated_at: string
+          winner_entry_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "matches"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      my_entry_in_match: {
+        Args: { p_match: Database["public"]["Tables"]["matches"]["Row"] }
+        Returns: string
+      }
       owns_media_path: { Args: { object_name: string }; Returns: boolean }
       phone_key: { Args: { dial: string; raw: string }; Returns: string }
+      propose_slot: {
+        Args: { p_court: string; p_match: string; p_start: string }
+        Returns: string
+      }
       publish_round: { Args: { p_round: string }; Returns: number }
+      respond_slot: {
+        Args: { p_accept: boolean; p_proposal: string }
+        Returns: string
+      }
       revoke_user_sessions: { Args: { p_user_id: string }; Returns: undefined }
       round_is_visible: { Args: { p_round: string }; Returns: boolean }
       save_round_groups: {
@@ -1169,6 +1226,7 @@ export type Database = {
         Returns: undefined
       }
       shares_match_with: { Args: { p_profile: string }; Returns: boolean }
+      withdraw_slot: { Args: { p_proposal: string }; Returns: undefined }
     }
     Enums: {
       booking_status: "confirmed" | "cancelled"

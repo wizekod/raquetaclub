@@ -193,7 +193,7 @@ Crons por pg_cron → `/api/cron/*`: recordatorios de partido (24 h / 2 h), reco
   - `lib/notifications/{email,whatsapp,push}.ts`, con las plantillas de WhatsApp del torneo.
   - `lib/stripe/client.ts`, `lib/pwa/*`, `lib/availability/tz.ts`, `components/ui/*`, `app/auth/{callback,confirm}`, PWA (`public/sw.js`, manifest) y `qa/lib.mjs`.
 - [X] Migraciones §4 con RLS + GRANTs explícitos + storage + semilla de planes. Validadas con `npm run db:check` (52/52) y aplicadas al proyecto `pjyleuqzqwzhsmrphyxf`. La prueba con usuarios reales `./qa/run.sh fase0-smoke` pasa 15/15.
-- [X] `lib/supabase/database.types.ts`: generado desde el proyecto real. Se regenera con `npm run db:types`, que conserva los alias del final. Ojo: el generador no marca argumentos de RPC que aceptan null; tras regenerar, devolver `| null` a `p_court` y `p_reason` de `create_court_block` (el typecheck lo avisa).
+- [X] `lib/supabase/database.types.ts`: generado desde el proyecto real. Se regenera con `npm run db:types`, que conserva los alias del final. Ojo: el generador no marca argumentos de RPC que aceptan null; tras regenerar, devolver `| null` a `p_court` y `p_reason` de `create_court_block`, y a `p_reason` de `cancel_match_booking` (el typecheck avisa del primero).
 - [X] `npm run typecheck`, `lint` y `build` en verde (el build requiere las variables de `.env.example`).
 - [X] Proyecto Supabase creado, enlazado y con las migraciones aplicadas. Ojo: `db push` necesita `--remote`, porque sin él la CLI apunta al stack local.
 - [X] Repo en GitHub (`wizekod/raquetaclub`).
@@ -250,7 +250,19 @@ Quedan pendientes de copiar, cada uno junto con la feature que lo usa en la Fase
   - `/jugador/torneos`: inscribirse, reglamento, su grupo y sus partidos de la ronda activa.
   - Pendiente para los pasos 6-7: cerrar la ronda (snapshots + `buildNextRound` para el borrador de la siguiente). Hasta entonces no se puede crear la ronda 2.
   - QA: `./qa/run.sh torneos` (36 checks). `submitForm` acepta `{ contains }` para elegir entre formularios con los mismos campos. Ojo: `group_members` tiene dos FK a `groups`, así que no se puede embeber con PostgREST sin desambiguar.
-- [ ] 5. Link de partido: propuesta/aceptación + reserva (RPCs)
+- [X] 5. Link de partido: propuesta/aceptación + reserva (RPCs).
+  - Base (`…_match_scheduling.sql`). RPCs SECURITY DEFINER que comprueban a mano quién llama:
+    - `propose_slot`, `respond_slot` (solo el rival; al aceptar crea la reserva y caducan las demás propuestas), `withdraw_slot`, `cancel_match_booking` (jugador antes de la hora, admin siempre).
+    - Validan horario de cancha, ronda, futuro, bloqueos y solapes.
+    - Helpers internos (`lock_open_match`, `assert_slot_valid`, `my_entry_in_match`) sin EXECUTE para `authenticated`. Verificado contra el proyecto real: el proyecto no da grants por defecto a funciones nuevas.
+  - Config `match_minutes` (90 por defecto; la lee también la RPC).
+  - `/p/{token}`:
+    - día y horarios libres (`freeSlotsForDay`: horario − bloqueos − reservas, pasos de 30 min, sin horarios pasados);
+    - hasta 3 propuestas, aceptar o rechazar, retirar, cancelar con motivo;
+    - WhatsApp al rival con el link.
+    - Funciona sin JS (radios y GET `?fecha=`).
+  - Inicio del jugador: "Tus partidos", con el aviso "Te propusieron horario". Links a `/p/` desde el torneo del jugador y desde la ronda del admin.
+  - QA: `./qa/run.sh partidos` (23 checks).
 - [ ] 6. Resultados: reportar / confirmar / disputar / corregir
 - [ ] 7. Rankings
 - [ ] 8. Notificaciones + cron

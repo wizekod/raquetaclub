@@ -69,18 +69,20 @@ export default async function JugadorTorneoPage({ params }: { params: Promise<{ 
                 </div>
                 <ul className="divide-y divide-border rounded-lg border border-border">
                   {myMatches.map((m) => (
-                    <li key={m.id} className="flex flex-wrap items-center gap-x-3 px-3 py-2 text-sm">
-                      <span className="flex-1">
-                        vs {m.entry_a === t.entry!.id ? m.name_b : m.name_a}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {m.scheduled_at ? `${formatDateTime(m.scheduled_at, club.timezone)} · ` : ""}
-                        {MATCH_STATUS_LABEL[m.status]}
-                      </span>
+                    <li key={m.id}>
+                      <Link href={`/p/${m.booking_token}`} className="flex flex-wrap items-center gap-x-3 px-3 py-2 text-sm hover:bg-muted/50">
+                        <span className="flex-1">
+                          vs {m.entry_a === t.entry!.id ? m.name_b : m.name_a}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {m.scheduled_at ? `${formatDateTime(m.scheduled_at, club.timezone)} · ` : ""}
+                          {MATCH_STATUS_LABEL[m.status]}
+                        </span>
+                      </Link>
                     </li>
                   ))}
                 </ul>
-                <p className="text-xs text-muted-foreground">Pronto podrás agendar la cancha y subir resultados desde aquí.</p>
+                <p className="text-xs text-muted-foreground">Abre un partido para proponer horario y apartar la cancha.</p>
               </>
             ) : (
               <p className="text-sm text-muted-foreground">No juegas en esta ronda.</p>

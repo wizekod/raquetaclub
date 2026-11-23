@@ -115,14 +115,16 @@ export default async function RondaPage({ params }: { params: Promise<{ id: stri
                 <CardContent>
                   <ul className="divide-y divide-border rounded-lg border border-border">
                     {gm.map((m) => (
-                      <li key={m.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-sm">
-                        <span className="flex-1">
-                          {m.name_a} <span className="text-muted-foreground">vs</span> {m.name_b}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {m.scheduled_at ? `${formatDateTime(m.scheduled_at, club.timezone)} · ` : ""}
-                          {MATCH_STATUS_LABEL[m.status]}
-                        </span>
+                      <li key={m.id}>
+                        <Link href={`/p/${m.booking_token}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-sm hover:bg-muted/50">
+                          <span className="flex-1">
+                            {m.name_a} <span className="text-muted-foreground">vs</span> {m.name_b}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {m.scheduled_at ? `${formatDateTime(m.scheduled_at, club.timezone)} · ` : ""}
+                            {MATCH_STATUS_LABEL[m.status]}
+                          </span>
+                        </Link>
                       </li>
                     ))}
                   </ul>

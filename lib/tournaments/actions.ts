@@ -164,6 +164,7 @@ const configFormSchema = z.object({
   deadline_time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Formato HH:MM"),
   auto_expel: int(0, 12),
   third_set: z.enum(["match_tiebreak_10", "full_set"]),
+  match_minutes: int(30, 240),
 });
 
 /** Reglas de puntuación y de la escalera (`tournaments.config`). */
@@ -194,6 +195,7 @@ export async function updateTournamentConfig(_prev: FormState, formData: FormDat
     results_deadline: { ...current.results_deadline, time: d.deadline_time },
     auto_expel_after_inactive_rounds: d.auto_expel,
     match_format: { ...current.match_format, third_set: d.third_set },
+    match_minutes: d.match_minutes,
   };
 
   const { error } = await supabase

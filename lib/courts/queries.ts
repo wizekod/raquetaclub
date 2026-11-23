@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { addDays, wallTimeToInstant } from "@/lib/availability/tz";
 import type { Tables } from "@/lib/supabase/database.types";
 import { fullName } from "@/lib/utils";
+import { freeSlotsByCourt } from "./availability";
 
 export type CourtWithHours = Tables<"courts"> & { hours: Tables<"court_hours">[] };
 
@@ -26,6 +27,48 @@ export async function listCourts(clubId: string, { onlyActive = false } = {}): P
 
 export async function getCourt(clubId: string, courtId: string): Promise<CourtWithHours | null> {
   return (await listCourts(clubId)).find((c) => c.id === courtId) ?? null;
+}
+
+/**
+ * Horarios libres de un día por cancha activa (del deporte dado), para
+ * proponer partido: horario semanal − bloqueos − reservas, en pasos de
+ * `stepMin` y sin horarios ya pasados. Lo usa el jugador (RLS: su club).
+ */
+export async function freeSlotsForDay(
+  clubId: string,
+  sport: "tennis" | "padel",
+  date: string,
+  timeZone: string,
+  durationMin: number,
+  stepMin = 30,
+) {
+  const supabase = await createClient();
+  const { start, end } = dayBounds(date, timeZone);
+  const [courts, { data: blocks }, { data: bookings }] = await Promise.all([
+    listCourts(clubId, { onlyActive: true }),
+    supabase.from("court_blocks").select("court_id, start_at, end_at").eq("club_id", clubId).lt("start_at", end).gt("end_at", start),
+    supabase
+      .from("court_bookings")
+      .select("court_id, start_at, end_at")
+      .eq("club_id", clubId)
+      .eq("status", "confirmed")
+      .lt("start_at", end)
+      .gt("end_at", start),
+  ]);
+  const iv = (r: { start_at: string; end_at: string }) => ({ start: Date.parse(r.start_at), end: Date.parse(r.end_at) });
+  const ofSport = courts.filter((c) => c.sport === sport);
+  const free = freeSlotsByCourt(
+    ofSport.map((c) => ({
+      courtId: c.id,
+      hours: c.hours,
+      blocks: (blocks ?? []).filter((b) => b.court_id === null || b.court_id === c.id).map(iv),
+      bookings: (bookings ?? []).filter((b) => b.court_id === c.id).map(iv),
+    })),
+    date,
+    timeZone,
+    { durationMin, stepMin, now: Date.now() },
+  );
+  return ofSport.map((c) => ({ id: c.id, name: c.name, slots: free.get(c.id) ?? [] }));
 }
 
 export type BlockRow = Tables<"court_blocks"> & { courtName: string | null };

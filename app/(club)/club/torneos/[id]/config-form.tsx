@@ -80,6 +80,7 @@ export function ConfigForm({
                 <option value="full_set">Set completo</option>
               </NativeSelect>
             </div>
+            {n("match_minutes", "Duración del partido (min)", c.match_minutes, "15", "Tiempo que se aparta la cancha")}
             <TextField
               id="cfg-deadline_time"
               name="deadline_time"

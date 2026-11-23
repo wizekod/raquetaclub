@@ -47,7 +47,7 @@ try {
   r = await submitForm(tPath, admin, { ...base, registration_open: "on", rules_pdf_path: `otro-club/rules/x.pdf` }, datos);
   ok((await r.text()).includes("Archivo no válido"), "rechaza un PDF fuera de la carpeta del club");
 
-  const cfg = { group_size: "3", promote: "1", relegate: "1", win: "3", win_default: "2", loss_played: "1", loss_default: "0", not_played: "0", bonus_week1: "0.25", bonus_week2: "0", deadline_time: "14:00", auto_expel: "2", third_set: "match_tiebreak_10" };
+  const cfg = { group_size: "3", promote: "1", relegate: "1", win: "3", win_default: "2", loss_played: "1", loss_default: "0", not_played: "0", bonus_week1: "0.25", bonus_week2: "0", deadline_time: "14:00", auto_expel: "2", third_set: "match_tiebreak_10", match_minutes: "90" };
   r = await submitForm(tPath, admin, { ...cfg, promote: "9" });
   ok((await r.text()).includes("Entre 0 y 5"), "valida las reglas");
   r = await submitForm(tPath, admin, cfg);
