@@ -213,7 +213,11 @@ Quedan pendientes de copiar, cada uno junto con la feature que lo usa en la Fase
   - Onboarding mínimo (nombre, enlace y zona horaria); la configuración completa va en el paso 2. Página pública `/{slug}` con sus torneos.
   - QA: `./qa/run.sh auth-paneles` (27 checks) envía los formularios reales sin JS contra la app (`QA_APP_URL`).
   - Configuración externa (plantillas de correo de Supabase, SMTP): `DEPLOY.md`.
-- [ ] 2. Onboarding de club + configuración + admins múltiples
+- [X] 2. Onboarding de club + configuración + admins múltiples.
+  - `/club/configuracion`: nombre, enlace (avisa que el anterior deja de funcionar), deportes, zona horaria, lada, teléfono, dirección, color y logo (subido directo a Storage). Incluye el QR del enlace de registro, descargable en PNG o SVG desde `/api/qr`.
+  - Administradores: el alta en Jugadores tiene rol Jugador o Administrador, y en la lista hay "Hacer admin" / "Quitar admin" (`setMemberRole`, con service_role).
+  - Base (`…_club_settings_guards.sql`): cambiar la lada recalcula el `phone_key` de los miembros, y la base impide dejar un club sin admin activo (`RC422`, también para service_role).
+  - QA: `./qa/run.sh club-config` (20 checks). Los helpers de la app están en `qa/app.mjs`.
 - [ ] 3. Canchas: CRUD, horario, bloqueos, calendario
 - [ ] 4. Torneos + motor `lib/tournaments/*` con tests
 - [ ] 5. Link de partido: propuesta/aceptación + reserva (RPCs)

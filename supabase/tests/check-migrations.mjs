@@ -182,6 +182,25 @@ ok(await err(`select stripe_customer_id from clubs`) === "42501", "anon no lee c
 await reset();
 ok((await q(`select count(*)::int n from subscription_plans`))[0].n === 2, "seed de planes");
 
+console.log("\n# paso 2: lada y último admin");
+await reset();
+await q(`update clubs set phone_country_code='34' where id=$1`, [A]);
+ok((await prof(p2)).phone_key === "+523387654321", "cambiar la lada no toca números internacionales");
+ok((await prof(p1)).phone_key === "+343312345678", "cambiar la lada recalcula los nacionales");
+await q(`update clubs set phone_country_code='52' where id=$1`, [A]);
+ok((await prof(p1)).phone_key === "+523312345678", "y vuelve al restaurarla");
+// `admin` es el único club_admin activo de A.
+ok(await err(`update profiles set role='player' where id=$1`, [admin]) === "RC422", "no se puede quitar el rol al último admin (ni service_role)");
+ok(await err(`update profiles set status='inactive' where id=$1`, [admin]) === "RC422", "no se puede dar de baja al último admin");
+await q(`update profiles set role='club_admin' where id=$1`, [p3]);
+await q(`update profiles set role='player' where id=$1`, [admin]);
+ok((await prof(admin)).role === "player", "con otro admin activo, sí se puede");
+await q(`update profiles set role='club_admin' where id=$1`, [admin]);
+await q(`update profiles set role='player' where id=$1`, [p3]);
+await as(admin);
+// Rechazado por la guarda de último admin (RC422) o la de estado propio (42501).
+ok(["RC422", "42501"].includes(await err(`update profiles set status='inactive' where id=$1`, [admin])), "un admin no se da de baja a sí mismo");
+
 console.log("\n# sesiones");
 await reset();
 await q(`insert into auth.sessions (user_id) values ($1), ($1)`, [p1]);

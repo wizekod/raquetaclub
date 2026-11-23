@@ -7,57 +7,8 @@
  *
  *   QA_APP_URL=http://localhost:3100 ./qa/run.sh auth-paneles
  */
-import { URL_BASE, rest, insert, deleteUser, deleteClub, login, sessionCookie, ok, section, summary, RUN } from "./lib.mjs";
-
-const APP = (process.env.QA_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
-const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const svc = { apikey: SERVICE, Authorization: `Bearer ${SERVICE}`, "Content-Type": "application/json" };
-
-async function makeUser(email, { app = {}, user = {} } = {}) {
-  const r = await fetch(`${URL_BASE}/auth/v1/admin/users`, {
-    method: "POST",
-    headers: svc,
-    body: JSON.stringify({ email, password: "Qa-passw0rd!", email_confirm: true, app_metadata: app, user_metadata: user }),
-  });
-  const u = await r.json();
-  if (!r.ok) throw new Error(`createUser: ${JSON.stringify(u)}`);
-  return u.id;
-}
-
-/** GET sin seguir redirecciones. */
-const visit = (path, cookie) =>
-  fetch(`${APP}${path}`, { redirect: "manual", headers: cookie ? { cookie } : {} });
-const location = (r) => (r.headers.get("location") ?? "").replace(APP, "");
-
-const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
-
-/**
- * Envía el formulario de la página como lo haría un navegador sin JS:
- * los campos ocultos de React ($ACTION_*) + los nuestros, en multipart.
- */
-async function submitForm(path, cookie, fields) {
-  const html = await (await visit(path, cookie)).text();
-  // El formulario que tiene el primer campo que enviamos (la barra lateral
-  // también tiene uno: cerrar sesión).
-  const key = Object.keys(fields)[0];
-  const form = [...html.matchAll(/<form[^>]*>([\s\S]*?)<\/form>/g)]
-    .map((m) => m[1])
-    .find((f) => f.includes(`name="${key}"`));
-  if (!form) throw new Error(`sin formulario con ${key} en ${path}`);
-  const body = new FormData();
-  for (const m of form.matchAll(/<input([^>]*)>/g)) {
-    const name = m[1].match(/name="([^"]*)"/)?.[1];
-    const value = m[1].match(/value="([^"]*)"/)?.[1] ?? "";
-    if (name && (name.startsWith("$ACTION") || !(decode(name) in fields))) body.append(decode(name), decode(value));
-  }
-  for (const [k, v] of Object.entries(fields)) body.set(k, v);
-  return fetch(`${APP}${path}`, {
-    method: "POST",
-    body,
-    redirect: "manual",
-    headers: { origin: APP, ...(cookie ? { cookie } : {}) },
-  });
-}
+import { rest, insert, deleteUser, deleteClub, login, sessionCookie, ok, section, summary, RUN } from "./lib.mjs";
+import { makeUser, visit, location, submitForm } from "./app.mjs";
 
 const slug = `qa-paneles-${RUN}`;
 const created = [];

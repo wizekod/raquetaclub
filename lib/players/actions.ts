@@ -25,6 +25,7 @@ const addSchema = z
     email: emailField,
     phone: phoneField,
     mode: z.enum(["invite", "password"]),
+    role: z.enum(["player", "club_admin"]).default("player"),
     password: z.string().optional(),
   })
   .superRefine((d, ctx) => {
@@ -34,7 +35,11 @@ const addSchema = z
     }
   });
 
-/** Alta de jugador por el admin del club (invitación o contraseña temporal). */
+/**
+ * Alta de un integrante por el admin del club: jugador o administrador, por
+ * invitación o con contraseña temporal. Que el rol venga del formulario está
+ * bien: quien llega aquí ya es admin y puede crear admins.
+ */
 export async function addPlayer(_prev: FormState, formData: FormData): Promise<FormState> {
   const club = await getMyClubAsAdmin();
   if (!club) return { error: "No tienes permiso para dar de alta jugadores." };
@@ -45,6 +50,7 @@ export async function addPlayer(_prev: FormState, formData: FormData): Promise<F
     email: formData.get("email"),
     phone: formData.get("phone"),
     mode: formData.get("mode"),
+    role: formData.get("role") ?? undefined,
     password: formData.get("password") ?? undefined,
   });
   if (!parsed.success) return { fieldErrors: z.flattenError(parsed.error).fieldErrors };
@@ -54,17 +60,18 @@ export async function addPlayer(_prev: FormState, formData: FormData): Promise<F
   if (phoneErr) return { fieldErrors: { phone: phoneErr } };
 
   const r = await createClubMember(
-    { email: d.email, firstName: d.firstName, lastName: d.lastName, phone: d.phone, clubId: club.id, role: "player" },
+    { email: d.email, firstName: d.firstName, lastName: d.lastName, phone: d.phone, clubId: club.id, role: d.role },
     d.mode === "password" ? d.password : undefined,
   );
   if (!r.ok) return r.field ? { fieldErrors: { [r.field]: [r.error] } } : { error: r.error };
 
   revalidatePath("/club/jugadores");
+  const quien = d.role === "club_admin" ? "Administrador" : "Jugador";
   return {
     message:
       r.mode === "invite"
-        ? `Invitación enviada a ${d.email}.`
-        : `Cuenta creada. Comparte con ${d.firstName} su correo y la contraseña temporal; podrá cambiarla en Mi cuenta.`,
+        ? `${quien} invitado: enviamos el enlace a ${d.email}.`
+        : `${quien} creado. Comparte con ${d.firstName} su correo y la contraseña temporal; podrá cambiarla en Mi cuenta.`,
   };
 }
 
@@ -85,6 +92,7 @@ export async function setMemberStatus(profileId: string, status: "active" | "ina
     .eq("id", profileId)
     .eq("club_id", club.id)
     .select("id");
+  if (error?.code === "RC422") return { ok: false, error: "El club necesita al menos un administrador activo." };
   if (error || !data?.length) return { ok: false, error: "No se pudo actualizar." };
 
   // Al dar de baja se cierran sus sesiones abiertas.
@@ -122,6 +130,32 @@ export async function resendInvite(profileId: string): Promise<Result> {
     role: p.role,
   });
   if (!r.ok) return { ok: false, error: r.error };
+  revalidatePath("/club/jugadores");
+  return { ok: true };
+}
+
+/**
+ * Hacer administrador a un jugador del club, o devolver a un admin a jugador.
+ * `profiles.role` sólo lo escribe el servidor (guarda en la base), así que va
+ * con service_role tras comprobar que quien pide es admin del mismo club. La
+ * base impide dejar el club sin admins (RC422).
+ */
+export async function setMemberRole(profileId: string, role: "player" | "club_admin"): Promise<Result> {
+  const club = await getMyClubAsAdmin();
+  const me = await getProfile();
+  if (!club || !me) return { ok: false, error: "Sin permiso." };
+  if (profileId === me.id) return { ok: false, error: "No puedes cambiar tu propio rol." };
+
+  const { data, error } = await createAdminClient()
+    .from("profiles")
+    .update({ role })
+    .eq("id", profileId)
+    .eq("club_id", club.id)
+    .in("role", ["player", "club_admin"])
+    .select("id");
+  if (error?.code === "RC422") return { ok: false, error: "El club necesita al menos un administrador activo." };
+  if (error || !data?.length) return { ok: false, error: "No se pudo cambiar el rol." };
+
   revalidatePath("/club/jugadores");
   return { ok: true };
 }

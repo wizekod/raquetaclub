@@ -19,9 +19,10 @@ export default async function JugadoresPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Jugadores</h1>
+        <h1 className="text-xl font-semibold tracking-tight">Jugadores y administradores</h1>
         <p className="text-sm text-muted-foreground">
-          {members.filter((m) => m.role === "player").length} jugadores en {club.name}.
+          {members.filter((m) => m.role === "player").length} jugadores y{" "}
+          {members.filter((m) => m.role === "club_admin").length} administradores en {club.name}.
         </p>
       </div>
 
@@ -61,7 +62,7 @@ export default async function JugadoresPage() {
                 </td>
                 <td className="px-4 py-3 text-right">
                   {m.id !== me?.id ? (
-                    <MemberActions id={m.id} status={m.status} pending={m.pending} />
+                    <MemberActions id={m.id} role={m.role} status={m.status} pending={m.pending} />
                   ) : null}
                 </td>
               </tr>
