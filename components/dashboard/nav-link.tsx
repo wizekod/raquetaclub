@@ -1,0 +1,46 @@
+"use client";
+
+import type { ReactNode } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+import { cn } from "@/lib/utils";
+
+const PANEL_ROOTS = new Set(["/club", "/jugador", "/superadmin"]);
+
+export function NavLink({
+  href,
+  label,
+  icon,
+  compact,
+  onNavigate,
+}: {
+  href: string;
+  label: string;
+  icon: ReactNode;
+  compact?: boolean;
+  onNavigate?: () => void;
+}) {
+  const pathname = usePathname();
+  // La raíz de cada panel sólo se marca en sí misma, no en sus subpáginas.
+  const active =
+    pathname === href ||
+    (!PANEL_ROOTS.has(href) && pathname.startsWith(`${href}/`));
+
+  return (
+    <Link
+      href={href}
+      onClick={onNavigate}
+      className={cn(
+        "flex items-center gap-2 rounded-lg text-sm font-medium transition-colors",
+        compact ? "shrink-0 whitespace-nowrap px-3 py-1.5" : "px-3 py-2",
+        active
+          ? "bg-primary/10 text-primary"
+          : "text-muted-foreground hover:bg-accent hover:text-foreground",
+      )}
+    >
+      {icon}
+      {label}
+    </Link>
+  );
+}

@@ -206,7 +206,13 @@ Quedan pendientes de copiar, cada uno junto con la feature que lo usa en la Fase
 - `lib/notifications/dispatch.ts` y el cron con pg_cron → paso 8.
 
 ### Fase 1 — MVP
-- [ ] 1. Auth de 3 roles + registro de jugador por club + invitaciones
+- [X] 1. Auth de 3 roles + registro de jugador por club + invitaciones.
+  - Login, registro de dueño (`/registro` → `/onboarding`), registro de jugador en `/{slug}/registro` (nombre, apellidos, teléfono validado con la lada del club, email y contraseña), recuperar y definir contraseña. Turnstile y rate limit en el modo protegido.
+  - Paneles `/club`, `/jugador` y `/superadmin`, cada uno con Mi cuenta. `requireRole` saca a los perfiles inactivos a `/auth/inactivo`.
+  - Club → Jugadores: alta por invitación de correo o con contraseña temporal (para altas masivas sin depender del límite de correos), reenviar invitación, y baja o reactivación (cierra sus sesiones con `revoke_user_sessions`).
+  - Onboarding mínimo (nombre, enlace y zona horaria); la configuración completa va en el paso 2. Página pública `/{slug}` con sus torneos.
+  - QA: `./qa/run.sh auth-paneles` (27 checks) envía los formularios reales sin JS contra la app (`QA_APP_URL`).
+  - Configuración externa (plantillas de correo de Supabase, SMTP): `DEPLOY.md`.
 - [ ] 2. Onboarding de club + configuración + admins múltiples
 - [ ] 3. Canchas: CRUD, horario, bloqueos, calendario
 - [ ] 4. Torneos + motor `lib/tournaments/*` con tests

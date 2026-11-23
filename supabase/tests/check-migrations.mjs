@@ -28,6 +28,7 @@ create role anon nologin; create role authenticated nologin; create role service
 create schema extensions; create schema auth; create schema storage;
 create table auth.users (id uuid primary key default gen_random_uuid(), email text,
   raw_app_meta_data jsonb default '{}', raw_user_meta_data jsonb default '{}');
+create table auth.sessions (id uuid primary key default gen_random_uuid(), user_id uuid references auth.users(id) on delete cascade);
 create function auth.uid() returns uuid language sql stable as
   $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
 grant usage on schema auth, storage, extensions to anon, authenticated, service_role;
@@ -180,6 +181,16 @@ ok(await err(`select id from profiles`) === "42501", "anon no lee perfiles");
 ok(await err(`select stripe_customer_id from clubs`) === "42501", "anon no lee columnas de facturación");
 await reset();
 ok((await q(`select count(*)::int n from subscription_plans`))[0].n === 2, "seed de planes");
+
+console.log("\n# sesiones");
+await reset();
+await q(`insert into auth.sessions (user_id) values ($1), ($1)`, [p1]);
+await db.exec(`set role authenticated`);
+ok(await err(`select public.revoke_user_sessions($1)`, [p1]) === "42501", "authenticated no puede cerrar sesiones ajenas");
+await reset(); await db.exec(`set role service_role`);
+await q(`select public.revoke_user_sessions($1)`, [p1]);
+await reset();
+ok((await q(`select count(*)::int n from auth.sessions where user_id=$1`, [p1]))[0].n === 0, "service_role cierra las sesiones del usuario");
 
 console.log(`\n${pass} pass, ${fail} fail`);
 process.exit(fail ? 1 : 0);

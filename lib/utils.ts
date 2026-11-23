@@ -56,3 +56,8 @@ export function hexA(hex: string, alpha: number): string {
   const n = parseInt(v.slice(1), 16)
   return `rgb(${(n >> 16) & 255} ${(n >> 8) & 255} ${n & 255} / ${alpha})`
 }
+
+/** "Nombre Apellidos", o un guion si el perfil aún no tiene nombre. */
+export function fullName(p: { first_name?: string | null; last_name?: string | null }): string {
+  return [p.first_name, p.last_name].filter(Boolean).join(" ").trim() || "—"
+}

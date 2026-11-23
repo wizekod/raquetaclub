@@ -1146,6 +1146,7 @@ export type Database = {
       is_superadmin: { Args: never; Returns: boolean }
       owns_media_path: { Args: { object_name: string }; Returns: boolean }
       phone_key: { Args: { dial: string; raw: string }; Returns: string }
+      revoke_user_sessions: { Args: { p_user_id: string }; Returns: undefined }
       round_is_visible: { Args: { p_round: string }; Returns: boolean }
       shares_match_with: { Args: { p_profile: string }; Returns: boolean }
     }

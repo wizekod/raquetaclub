@@ -80,7 +80,8 @@ export async function requireRole(
   }
   // Un jugador o admin dado de baja por el club no entra a los paneles.
   if (profile.status !== "active") {
-    redirect("/login?inactivo=1");
+    // No a /login: con sesión, el proxy lo devolvería al panel (bucle).
+    redirect("/auth/inactivo");
   }
   return profile;
 }
