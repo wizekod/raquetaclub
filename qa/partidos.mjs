@@ -21,7 +21,7 @@ try {
     created.push(id);
     return id;
   };
-  const [p1, p2, p3, p4] = [await mk(1, "Ana", "Uno"), await mk(2, "Beto", "Dos"), await mk(3, "Caro", "Tres"), await mk(4, "Dani", "Cuatro")];
+  const [p1, p2, , p4] = [await mk(1, "Ana", "Uno"), await mk(2, "Beto", "Dos"), await mk(3, "Caro", "Tres"), await mk(4, "Dani", "Cuatro")];
   const cookie = async (i) => sessionCookie(await login(`qa-p${i}-${RUN}@example.com`));
   const [c1, c2, c3, c4] = [await cookie(1), await cookie(2), await cookie(3), await cookie(4)];
   const admin = sessionCookie(await login(adminEmail));

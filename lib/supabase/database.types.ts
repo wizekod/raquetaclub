@@ -1148,6 +1148,17 @@ export type Database = {
         Args: { p_match: string; p_reason: string | null }
         Returns: undefined
       }
+      close_round: {
+        Args: {
+          p_expel: string[]
+          p_finish: boolean
+          p_next: Json | null
+          p_round: string
+          p_snapshots: Json
+        }
+        Returns: string | null
+      }
+      confirm_result: { Args: { p_match: string }; Returns: undefined }
       create_court_block: {
         Args: {
           p_cancel?: boolean
@@ -1164,6 +1175,10 @@ export type Database = {
       current_user_role: {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
+      }
+      dispute_result: {
+        Args: { p_match: string; p_reason: string }
+        Returns: undefined
       }
       is_club_admin: { Args: { p_club: string }; Returns: boolean }
       is_server_role: { Args: never; Returns: boolean }
@@ -1211,6 +1226,10 @@ export type Database = {
         Returns: string
       }
       publish_round: { Args: { p_round: string }; Returns: number }
+      report_result: {
+        Args: { p_match: string; p_result: string; p_score: Json | null }
+        Returns: undefined
+      }
       respond_slot: {
         Args: { p_accept: boolean; p_proposal: string }
         Returns: string
@@ -1220,6 +1239,10 @@ export type Database = {
       save_round_groups: {
         Args: { p_groups: Json; p_round: string }
         Returns: undefined
+      }
+      score_winner: {
+        Args: { p_score: Json; p_tb10: boolean }
+        Returns: string
       }
       set_court_hours: {
         Args: { p_court: string; p_hours: Json }

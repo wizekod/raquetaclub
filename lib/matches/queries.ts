@@ -23,6 +23,8 @@ export type MatchView = {
   proposals: (Tables<"match_slot_proposals"> & { courtName: string; mine: boolean })[];
   /** `upcoming`: aún no empieza (un jugador sólo puede cancelar antes). */
   booking: { id: string; courtName: string; start_at: string; end_at: string; upcoming: boolean } | null;
+  /** Ya pasó la fecha límite de resultados de la ronda. */
+  deadlinePassed: boolean;
 };
 
 /**
@@ -96,6 +98,7 @@ export async function getMatchByToken(token: string, profile: SessionProfile): P
     isAdmin,
     rival,
     proposals: (proposals ?? []).map((p) => ({ ...p, courtName: courtName.get(p.court_id) ?? "Cancha", mine: p.proposed_by === profile.id })),
+    deadlinePassed: Date.parse(round.results_deadline) < Date.now(),
     booking: booking
       ? { ...booking, courtName: courtName.get(booking.court_id) ?? "Cancha", upcoming: Date.parse(booking.start_at) > Date.now() }
       : null,

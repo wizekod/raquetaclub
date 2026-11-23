@@ -16,7 +16,17 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { NativeSelect } from "@/components/ui/native-select";
 
-import { CancelBookingForm, ProposeForm, RespondForm, WithdrawButton } from "./match-forms";
+import { formatScore } from "@/lib/tournaments/format";
+
+import {
+  AdminResultForm,
+  CancelBookingForm,
+  ConfirmResultForms,
+  ProposeForm,
+  ReportResultForm,
+  RespondForm,
+  WithdrawButton,
+} from "./match-forms";
 
 export const metadata: Metadata = { title: "Partido · RaquetaClub" };
 
@@ -37,6 +47,19 @@ export default async function MatchPage({ params, searchParams }: Props) {
   const { match, round, tournament, timeZone: tz, me, rival } = view;
   const roundOpen = round.status === "active";
   const canPropose = !!me && roundOpen && match.status === "pending";
+  // Se reporta después de jugar: sin reserva, o con la reserva ya empezada.
+  const canReport =
+    !!me && roundOpen && !view.deadlinePassed &&
+    (match.status === "pending" || (match.status === "scheduled" && !view.booking?.upcoming));
+  const sideName = (entryId: string | null) => (entryId === match.entry_a ? view.a.name : entryId === match.entry_b ? view.b.name : "");
+  const winnerIsB = match.winner_entry_id === match.entry_b;
+  const resultLine =
+    match.result_type === "default"
+      ? `${sideName(match.winner_entry_id)} ganó por default`
+      : match.score
+        ? `${sideName(match.winner_entry_id)} ganó ${formatScore(match.score, winnerIsB)}`
+        : null;
+  const iReported = match.reported_by === profile.id;
 
   // Días elegibles: de hoy (o el inicio de la ronda) al último día de la ronda.
   const today = todayInTz(tz);
@@ -70,6 +93,54 @@ export default async function MatchPage({ params, searchParams }: Props) {
           <span className="ml-2 text-muted-foreground">Jugar a más tardar el {formatDateTime(round.results_deadline, tz)}</span>
         </p>
       </div>
+
+      {resultLine || match.status === "not_played" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Resultado</CardTitle>
+            <CardDescription>
+              {match.status === "not_played" ? "No jugado" : resultLine}
+              {match.status === "reported" ? " · por confirmar" : ""}
+              {match.status === "disputed" ? " · en disputa" : ""}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {match.status === "reported" && me && !iReported ? <ConfirmResultForms token={token} /> : null}
+            {match.status === "reported" && iReported ? (
+              <p className="text-sm text-muted-foreground">Esperando a que {rival?.name ?? "tu rival"} lo confirme.</p>
+            ) : null}
+            {match.status === "disputed" ? (
+              <p className="text-sm">
+                <span className="text-muted-foreground">Motivo:</span> {match.dispute_reason}. El administrador del club lo resolverá.
+              </p>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {canReport ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Subir resultado</CardTitle>
+            <CardDescription>Lo sube quien ganó; tu rival lo confirma. Fecha límite: {formatDateTime(round.results_deadline, tz)}.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ReportResultForm token={token} rivalName={rival?.name ?? "Rival"} />
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {view.isAdmin && roundOpen && match.status !== "cancelled" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Corregir resultado</CardTitle>
+            <CardDescription>Como árbitro general: marcador, DEF/W.O., no jugado o borrar el resultado. Resuelve también las disputas.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <AdminResultForm token={token} nameA={view.a.name} nameB={view.b.name} />
+          </CardContent>
+        </Card>
+      ) : null}
 
       {view.booking ? (
         <Card>

@@ -329,6 +329,65 @@ ok((await q(`select status from matches where id=$1`, [mAB]))[0].status === "pen
 await as(admin);
 ok(await err(`select public.cancel_match_booking($1, null)`, [mAB]) === "55000", "no cancela lo que no está agendado");
 
+console.log("\n# paso 6: resultados y cierre");
+await reset();
+const sw = async (sets, tb = true) => (await q(`select public.score_winner($1, $2) w`, [JSON.stringify({ sets }), tb]))[0].w;
+ok(await sw([[6, 4], [7, 5]]) === "a" && await sw([[4, 6], [6, 3], [8, 10]]) === "b" && await sw([[7, 6], [6, 7], [12, 10]]) === "a", "score_winner: 2-0 y 2-1 con TB a 10");
+ok(await sw([[6, 5], [6, 0]]) === null && await sw([[6, 4], [6, 4], [6, 4]]) === null && await sw([[6, 4], [4, 6], [10, 9]]) === null
+   && await sw([[6.5, 4], [6, 4]]) === null && await sw([[6, 4], [4, 6]]) === null, "score_winner rechaza marcadores imposibles");
+ok(await sw([[6, 4], [4, 6], [7, 5]], false) === "a" && await sw([[6, 4], [4, 6], [10, 8]], false) === null, "3.er set completo si no hay TB");
+const mBC = (await q(`select id from matches where round_id=$1 and $2 in (entry_a, entry_b) and $3 in (entry_a, entry_b)`, [r2.id, x2, x3]))[0].id;
+const ab = (await q(`select entry_a from matches where id=$1`, [mAB]))[0];
+ok(ab.entry_a === x1, "(mAB: Ana es entry_a)");
+const win = JSON.stringify({ sets: [[6, 4], [6, 3]] }); // gana A (Ana)
+await as(p3);
+ok(await err(`select public.report_result($1, 'played', $2)`, [mAB, win]) === "42501", "quien no juega no reporta");
+await as(p2);
+ok(await err(`select public.report_result($1, 'played', $2)`, [mAB, win]) === "22023", "el perdedor no sube el resultado");
+await as(p1);
+ok(await err(`select public.report_result($1, 'played', $2)`, [mAB, JSON.stringify({ sets: [[6, 4], [6, 5]] })]) === "22023", "marcador imposible → 22023");
+await q(`select public.report_result($1, 'played', $2)`, [mAB, win]);
+await reset();
+const rep = (await q(`select status, winner_entry_id, result_type, reported_by from matches where id=$1`, [mAB]))[0];
+ok(rep.status === "reported" && rep.winner_entry_id === x1 && rep.result_type === "played" && rep.reported_by === p1, "el ganador reporta: queda por confirmar");
+await as(p1);
+ok(await err(`select public.confirm_result($1)`, [mAB]) === "42501", "no confirma su propio resultado");
+ok(await err(`select public.report_result($1, 'played', $2)`, [mAB, win]) === "55000", "no reporta dos veces");
+await as(p2);
+ok(await err(`select public.dispute_result($1, '  ')`, [mAB]) === "22023", "disputar pide motivo");
+await q(`select public.dispute_result($1, 'Fue 6-4 4-6 10-8')`, [mAB]);
+await reset();
+ok((await q(`select status from matches where id=$1`, [mAB]))[0].status === "disputed", "el rival lo disputa");
+await as(p3);
+await q(`select public.report_result($1, 'default', null)`, [mAC]);
+await as(p1);
+await q(`select public.confirm_result($1)`, [mAC]);
+await reset();
+const mac = (await q(`select status, result_type, winner_entry_id, score from matches where id=$1`, [mAC]))[0];
+ok(mac.status === "confirmed" && mac.result_type === "default" && mac.winner_entry_id === x3 && mac.score === null, "default reclamado y confirmado por el rival");
+
+const g2 = (await q(`select id from groups where round_id=$1`, [r2.id]))[0].id;
+const snap = (entry, position) => ({ group_id: g2, entry_id: entry, position, played: 0, won: 0, won_default: 0, lost: 0, lost_default: 0, not_played: 0, sets_won: 0, sets_lost: 0, games_won: 0, games_lost: 0, bonus: 0, points: 0, movement: "stay" });
+const closeArgs = [r2.id, JSON.stringify([snap(x3, 1), snap(x1, 2), snap(x2, 3)]), [x2], JSON.stringify({ number: 2, name: "Marzo", starts_on: "2027-03-01", ends_on: "2027-03-31", results_deadline: "2027-03-31T20:00:00Z", groups: [{ level: 1, entries: [x3, x1] }] }), false];
+const close = () => q(`select public.close_round($1, $2, $3, $4, $5) id`, closeArgs);
+await as(p1);
+ok(await err(`select public.close_round($1, $2, $3, $4, $5)`, closeArgs) === "42501", "un jugador no cierra rondas");
+await as(admin);
+ok(await err(`select public.close_round($1, $2, $3, $4, $5)`, closeArgs) === "55000", "no cierra con disputas abiertas");
+await q(`update matches set status='confirmed', result_type='played', winner_entry_id=$2, score=$3, admin_override_by=$4 where id=$1`, [mAB, x2, JSON.stringify({ sets: [[4, 6], [6, 4], [8, 10]] }), admin]);
+const next = (await close())[0].id;
+await reset();
+const st = Object.fromEntries((await q(`select id, status, result_type from matches where round_id=$1`, [r2.id])).map((m) => [m.id, m]));
+ok(st[mBC].status === "not_played" && st[mBC].result_type === "not_played", "lo que no tiene resultado queda como no jugado");
+ok((await q(`select count(*)::int n from standings_snapshots where round_id=$1`, [r2.id]))[0].n === 3, "se guardan las tablas");
+ok((await q(`select status from tournament_entries where id=$1`, [x2]))[0].status === "expelled", "baja por inactividad");
+const rr2 = (await q(`select status, closed_at from rounds where id=$1`, [r2.id]))[0];
+const nr = (await q(`select number, status from rounds where id=$1`, [next]))[0];
+ok(rr2.status === "closed" && nr.number === 2 && nr.status === "draft", "ronda cerrada y la siguiente en borrador");
+ok((await q(`select count(*)::int n from group_members where round_id=$1`, [next]))[0].n === 2, "con sus grupos");
+await as(admin);
+ok(await err(`select public.close_round($1, $2, $3, $4, $5)`, closeArgs) === "55000", "no se cierra dos veces");
+
 console.log("\n# sesiones");
 await reset();
 await q(`insert into auth.sessions (user_id) values ($1), ($1)`, [p1]);

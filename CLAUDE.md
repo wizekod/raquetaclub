@@ -193,7 +193,7 @@ Crons por pg_cron → `/api/cron/*`: recordatorios de partido (24 h / 2 h), reco
   - `lib/notifications/{email,whatsapp,push}.ts`, con las plantillas de WhatsApp del torneo.
   - `lib/stripe/client.ts`, `lib/pwa/*`, `lib/availability/tz.ts`, `components/ui/*`, `app/auth/{callback,confirm}`, PWA (`public/sw.js`, manifest) y `qa/lib.mjs`.
 - [X] Migraciones §4 con RLS + GRANTs explícitos + storage + semilla de planes. Validadas con `npm run db:check` (52/52) y aplicadas al proyecto `pjyleuqzqwzhsmrphyxf`. La prueba con usuarios reales `./qa/run.sh fase0-smoke` pasa 15/15.
-- [X] `lib/supabase/database.types.ts`: generado desde el proyecto real. Se regenera con `npm run db:types`, que conserva los alias del final. Ojo: el generador no marca argumentos de RPC que aceptan null; tras regenerar, devolver `| null` a `p_court` y `p_reason` de `create_court_block`, y a `p_reason` de `cancel_match_booking` (el typecheck avisa del primero).
+- [X] `lib/supabase/database.types.ts`: generado desde el proyecto real. Se regenera con `npm run db:types`, que conserva los alias del final y aplica `scripts/patch-db-types.mjs`. El generador no sabe qué argumentos o retornos de RPC aceptan null; el script los marca, y falla si una firma cambió. Si una RPC nueva acepta null, se agrega ahí.
 - [X] `npm run typecheck`, `lint` y `build` en verde (el build requiere las variables de `.env.example`).
 - [X] Proyecto Supabase creado, enlazado y con las migraciones aplicadas. Ojo: `db push` necesita `--remote`, porque sin él la CLI apunta al stack local.
 - [X] Repo en GitHub (`wizekod/raquetaclub`).
@@ -263,7 +263,21 @@ Quedan pendientes de copiar, cada uno junto con la feature que lo usa en la Fase
     - Funciona sin JS (radios y GET `?fecha=`).
   - Inicio del jugador: "Tus partidos", con el aviso "Te propusieron horario". Links a `/p/` desde el torneo del jugador y desde la ronda del admin.
   - QA: `./qa/run.sh partidos` (23 checks).
-- [ ] 6. Resultados: reportar / confirmar / disputar / corregir
+- [X] 6. Resultados: reportar / confirmar / disputar / corregir, y cierre de ronda.
+  - Base (`…_results_and_close.sql`):
+    - `report_result`: solo el ganador; marcador o default; después de la hora agendada y antes de la fecha límite.
+    - `confirm_result` y `dispute_result`: solo el rival; la disputa requiere motivo.
+    - `score_winner` valida el marcador en SQL con las mismas reglas que `scoring.ts`.
+    - `close_round` (INVOKER, admin), todo o nada: bloquea si hay disputas; "por confirmar" pasa a confirmado y lo que no tiene resultado a no jugado; guarda los snapshots y las bajas por inactividad; crea la siguiente ronda con sus grupos o finaliza el torneo.
+  - Correcciones del admin (`adminSetResult`): marcador, DEF de A o B, no jugado, borrar. UPDATE con su RLS, solo en rondas activas.
+  - `lib/tournaments/close.ts` (`planClose`, lógica pura con tests): tablas por grupo, movimientos, bajas, nuevos inscritos y la siguiente ronda (`nextRoundDraft`).
+  - Fecha jugada para el bonus: `scheduled_at` o, sin reserva, `reported_at`.
+  - UI:
+    - `/p/{token}`: subir resultado (sets "Tú / Rival"), confirmar o disputar, y "Corregir resultado" del admin.
+    - Tablas por grupo (`components/tournaments/standings-table.tsx`) en vivo, o congeladas con flechas de movimiento.
+    - "Cerrar ronda" en la ronda del admin.
+  - El cierre automático en la fecha límite y la autoconfirmación a las 48 h van con los crons del paso 8.
+  - QA: `./qa/run.sh resultados` (26 checks).
 - [ ] 7. Rankings
 - [ ] 8. Notificaciones + cron
 - [ ] 9. Superadmin + Stripe

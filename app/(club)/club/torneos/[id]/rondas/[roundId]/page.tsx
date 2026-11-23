@@ -4,16 +4,18 @@ import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 
 import { requireMyClub } from "@/lib/clubs/queries";
-import { getRoundDetail, getTournament, listEntries } from "@/lib/tournaments/queries";
+import { getRoundDetail, getRoundTables, getTournament, listEntries, listRounds } from "@/lib/tournaments/queries";
 import { deleteRound } from "@/lib/tournaments/actions";
 import { parseConfig } from "@/lib/tournaments/config";
 import { groupSizes } from "@/lib/tournaments/ladder";
 import { MATCH_STATUS_LABEL, ROUND_STATUS_LABEL } from "@/lib/tournaments/labels";
+import { formatScore } from "@/lib/tournaments/format";
+import { StandingsTable } from "@/components/tournaments/standings-table";
 import { formatDateTime, formatLongDate } from "@/lib/format/dates";
 import { ConfirmSubmit } from "@/components/confirm-submit";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-import { GroupsForm, PublishRoundForm, RoundForm, SuggestGroupsForm } from "./round-editor";
+import { CloseRoundForm, GroupsForm, PublishRoundForm, RoundForm, SuggestGroupsForm } from "./round-editor";
 
 export const metadata: Metadata = { title: "Ronda · RaquetaClub" };
 
@@ -30,6 +32,9 @@ export default async function RondaPage({ params }: { params: Promise<{ id: stri
   const levelOf = new Map(groups.flatMap((g) => g.members.map((m) => [m.entry_id, g.level] as const)));
   const maxLevel = Math.max(groups.length, groupSizes(accepted.length, config.group_size).length) + 1;
   const unassigned = accepted.filter((e) => !levelOf.has(e.id));
+  const tables = isDraft ? new Map() : await getRoundTables(detail, config, club.timezone);
+  const nextRound = round.status === "closed" ? (await listRounds(id)).find((r) => r.number === round.number + 1) : undefined;
+  const count = (st: string[]) => matches.filter((m) => st.includes(m.status)).length;
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -104,6 +109,24 @@ export default async function RondaPage({ params }: { params: Promise<{ id: stri
         </>
       ) : (
         <div className="space-y-4">
+          {round.status === "active" ? (
+            <CloseRoundForm
+              roundId={round.id}
+              confirmed={count(["confirmed", "not_played"])}
+              reported={count(["reported"])}
+              disputed={count(["disputed"])}
+              missing={count(["pending", "scheduled"])}
+              ladder={tournament.type === "ladder"}
+            />
+          ) : null}
+          {nextRound ? (
+            <p className="text-sm">
+              Siguiente ronda:{" "}
+              <Link href={`/club/torneos/${id}/rondas/${nextRound.id}`} className="font-medium underline underline-offset-4">
+                {nextRound.number}. {nextRound.name}
+              </Link>
+            </p>
+          ) : null}
           {groups.map((g) => {
             const gm = matches.filter((m) => m.group_id === g.id);
             return (
@@ -112,7 +135,8 @@ export default async function RondaPage({ params }: { params: Promise<{ id: stri
                   <CardTitle>{g.name}</CardTitle>
                   <CardDescription>{g.members.map((m) => m.name).join(" · ")}</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
+                  <StandingsTable rows={tables.get(g.id) ?? []} />
                   <ul className="divide-y divide-border rounded-lg border border-border">
                     {gm.map((m) => (
                       <li key={m.id}>
@@ -120,8 +144,10 @@ export default async function RondaPage({ params }: { params: Promise<{ id: stri
                           <span className="flex-1">
                             {m.name_a} <span className="text-muted-foreground">vs</span> {m.name_b}
                           </span>
-                          <span className="text-xs text-muted-foreground">
-                            {m.scheduled_at ? `${formatDateTime(m.scheduled_at, club.timezone)} · ` : ""}
+                          {m.score ? <span className="font-medium tabular-nums">{formatScore(m.score)}</span> : null}
+                          {m.result_type === "default" ? <span className="text-xs font-medium">DEF</span> : null}
+                          <span className={m.status === "disputed" ? "text-xs font-medium text-destructive" : "text-xs text-muted-foreground"}>
+                            {m.scheduled_at && !m.score ? `${formatDateTime(m.scheduled_at, club.timezone)} · ` : ""}
                             {MATCH_STATUS_LABEL[m.status]}
                           </span>
                         </Link>

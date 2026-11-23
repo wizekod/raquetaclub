@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 
-import { publishRound, saveGroups, suggestRoundGroups, updateRound } from "@/lib/tournaments/actions";
+import { closeRound, publishRound, saveGroups, suggestRoundGroups, updateRound } from "@/lib/tournaments/actions";
 import type { FormState } from "@/lib/forms";
 import type { RoundRow } from "@/lib/supabase/database.types";
 import { FormErrorBanner, TextField, useSuccessToast } from "@/components/forms";
@@ -120,6 +120,56 @@ export function RoundForm({ round }: { round: RoundRow }) {
         <CardFooter>
           <Button type="submit" variant="outline" disabled={pending}>
             {pending ? "Guardando…" : "Guardar"}
+          </Button>
+        </CardFooter>
+      </Card>
+    </form>
+  );
+}
+
+export function CloseRoundForm({
+  roundId,
+  confirmed,
+  reported,
+  disputed,
+  missing,
+  ladder,
+}: {
+  roundId: string;
+  confirmed: number;
+  reported: number;
+  disputed: number;
+  missing: number;
+  ladder: boolean;
+}) {
+  const { state, formAction, pending } = useForm(closeRound);
+  return (
+    <form action={formAction}>
+      <input type="hidden" name="roundId" value={roundId} />
+      <Card>
+        <CardHeader>
+          <CardTitle>Cerrar ronda</CardTitle>
+          <CardDescription>
+            {confirmed} con resultado · {reported} por confirmar (se darán por buenos) · {missing} sin resultado (quedarán como no
+            jugados){disputed ? ` · ${disputed} en disputa` : ""}.{" "}
+            {ladder
+              ? "Se congelan las tablas, se aplican ascensos, descensos y bajas por inactividad, y se arma la siguiente ronda en borrador."
+              : "Se congelan las tablas y el torneo termina."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <FormErrorBanner error={state.error} />
+          {disputed ? <p className="text-sm text-destructive">Resuelve las disputas (abre cada partido) antes de cerrar.</p> : null}
+        </CardContent>
+        <CardFooter>
+          <Button
+            type="submit"
+            disabled={pending || disputed > 0}
+            onClick={(e) => {
+              if (!confirm("¿Cerrar la ronda? Las tablas quedan congeladas.")) e.preventDefault();
+            }}
+          >
+            {pending ? "Cerrando…" : "Cerrar ronda"}
           </Button>
         </CardFooter>
       </Card>

@@ -2,11 +2,21 @@
 
 import { useActionState } from "react";
 
-import { cancelBooking, proposeSlot, respondToProposal, withdrawProposal } from "@/lib/matches/actions";
+import {
+  adminSetResult,
+  cancelBooking,
+  confirmResult,
+  disputeResult,
+  proposeSlot,
+  reportResult,
+  respondToProposal,
+  withdrawProposal,
+} from "@/lib/matches/actions";
 import type { FormState } from "@/lib/forms";
 import { FormErrorBanner, useSuccessToast } from "@/components/forms";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 
 type CourtSlots = { id: string; name: string; slots: { value: string; label: string }[] };
 
@@ -110,6 +120,100 @@ export function CancelBookingForm({ token }: { token: string }) {
           Cancelar reserva
         </Button>
       </div>
+    </form>
+  );
+}
+
+/** Tres filas de sets con dos columnas. `x`/`y` son los sufijos de los nombres. */
+function SetInputs({ x, y, xLabel, yLabel }: { x: string; y: string; xLabel: string; yLabel: string }) {
+  const cell = "h-9 w-14 text-center tabular-nums";
+  return (
+    <div className="grid grid-cols-[auto_auto_auto_auto] items-center gap-x-3 gap-y-2 text-sm">
+      <span />
+      {[1, 2, 3].map((n) => (
+        <span key={n} className="text-center text-xs text-muted-foreground">
+          {n === 3 ? "3.º / TB" : `Set ${n}`}
+        </span>
+      ))}
+      {[
+        [x, xLabel],
+        [y, yLabel],
+      ].map(([suffix, label]) => (
+        <div key={suffix} className="contents">
+          <span className="max-w-32 truncate">{label}</span>
+          {[1, 2, 3].map((n) => (
+            <Input key={n} name={`s${n}_${suffix}`} inputMode="numeric" maxLength={2} aria-label={`${label}, set ${n}`} className={cell} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function ReportResultForm({ token, rivalName }: { token: string; rivalName: string }) {
+  const [state, formAction, pending] = useActionState<FormState, FormData>(reportResult, {});
+  return (
+    <form action={formAction} className="space-y-3">
+      <input type="hidden" name="token" value={token} />
+      <Feedback state={state} />
+      <SetInputs x="me" y="rival" xLabel="Tú" yLabel={rivalName} />
+      <p className="text-xs text-muted-foreground">El 3.er set es el tie-break a 10 (ej. 10-8). Déjalo vacío si fue 2-0.</p>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="radio" name="result" value="played" defaultChecked className="size-4 accent-primary" /> Jugamos y gané
+      </label>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="radio" name="result" value="default" className="size-4 accent-primary" /> Gané por default: {rivalName} no se presentó
+      </label>
+      <Button type="submit" disabled={pending}>
+        {pending ? "Enviando…" : "Subir resultado"}
+      </Button>
+    </form>
+  );
+}
+
+export function ConfirmResultForms({ token }: { token: string }) {
+  const [state, formAction, pending] = useActionState<FormState, FormData>(confirmResult, {});
+  const [dState, disputeAction, disputing] = useActionState<FormState, FormData>(disputeResult, {});
+  return (
+    <div className="space-y-3">
+      <form action={formAction}>
+        <input type="hidden" name="token" value={token} />
+        <Feedback state={state} />
+        <Button type="submit" disabled={pending}>
+          Confirmar resultado
+        </Button>
+      </form>
+      <form action={disputeAction} className="space-y-2">
+        <input type="hidden" name="token" value={token} />
+        <Feedback state={dState} />
+        <div className="flex flex-wrap gap-2">
+          <Input name="reason" placeholder="¿Qué está mal? (ej. fue 6-4 4-6 10-8)" maxLength={500} className="min-w-0 flex-1" />
+          <Button type="submit" variant="outline" disabled={disputing}>
+            Disputar
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+export function AdminResultForm({ token, nameA, nameB }: { token: string; nameA: string; nameB: string }) {
+  const [state, formAction, pending] = useActionState<FormState, FormData>(adminSetResult, {});
+  return (
+    <form action={formAction} className="space-y-3">
+      <input type="hidden" name="token" value={token} />
+      <Feedback state={state} />
+      <SetInputs x="a" y="b" xLabel={nameA} yLabel={nameB} />
+      <NativeSelect name="outcome" defaultValue="played" aria-label="Resultado" className="w-full">
+        <option value="played">Jugado: el marcador decide al ganador</option>
+        <option value="def_a">Gana {nameA} por default (W.O.)</option>
+        <option value="def_b">Gana {nameB} por default (W.O.)</option>
+        <option value="not_played">No jugado</option>
+        <option value="reopen">Borrar resultado</option>
+      </NativeSelect>
+      <Button type="submit" variant="outline" disabled={pending}>
+        {pending ? "Guardando…" : "Guardar como administrador"}
+      </Button>
     </form>
   );
 }

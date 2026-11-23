@@ -6,7 +6,10 @@ import { ChevronLeft, FileText } from "lucide-react";
 import { requireRole } from "@/lib/auth/dal";
 import { getMyClub } from "@/lib/clubs/queries";
 import { enrollInTournament } from "@/lib/tournaments/actions";
-import { getActiveRound, getRoundDetail, listTournamentsForPlayer } from "@/lib/tournaments/queries";
+import { getActiveRound, getRoundDetail, getRoundTables, listTournamentsForPlayer } from "@/lib/tournaments/queries";
+import { parseConfig } from "@/lib/tournaments/config";
+import { formatScore } from "@/lib/tournaments/format";
+import { StandingsTable } from "@/components/tournaments/standings-table";
 import { ENTRY_STATUS_LABEL, MATCH_STATUS_LABEL, STATUS_LABEL, TYPE_LABEL } from "@/lib/tournaments/labels";
 import { formatDateTime, formatLongDate } from "@/lib/format/dates";
 import { mediaUrl } from "@/lib/storage/media";
@@ -28,6 +31,7 @@ export default async function JugadorTorneoPage({ params }: { params: Promise<{ 
   const myGroup = t.entry ? detail?.groups.find((g) => g.members.some((m) => m.entry_id === t.entry!.id)) : undefined;
   const myMatches = myGroup ? detail!.matches.filter((m) => m.entry_a === t.entry!.id || m.entry_b === t.entry!.id) : [];
   const pdf = mediaUrl(t.rules_pdf_path);
+  const tables = detail && myGroup ? await getRoundTables(detail, parseConfig(t.config), club.timezone) : null;
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -65,8 +69,8 @@ export default async function JugadorTorneoPage({ params }: { params: Promise<{ 
               <>
                 <div>
                   <p className="text-sm font-medium">Tu grupo: {myGroup.name}</p>
-                  <p className="text-sm text-muted-foreground">{myGroup.members.map((m) => m.name).join(" · ")}</p>
                 </div>
+                <StandingsTable rows={tables?.get(myGroup.id) ?? []} highlight={t.entry!.id} />
                 <ul className="divide-y divide-border rounded-lg border border-border">
                   {myMatches.map((m) => (
                     <li key={m.id}>
@@ -74,15 +78,16 @@ export default async function JugadorTorneoPage({ params }: { params: Promise<{ 
                         <span className="flex-1">
                           vs {m.entry_a === t.entry!.id ? m.name_b : m.name_a}
                         </span>
+                        {m.score ? <span className="font-medium tabular-nums">{formatScore(m.score, m.entry_b === t.entry!.id)}</span> : null}
                         <span className="text-xs text-muted-foreground">
-                          {m.scheduled_at ? `${formatDateTime(m.scheduled_at, club.timezone)} · ` : ""}
+                          {m.scheduled_at && !m.score ? `${formatDateTime(m.scheduled_at, club.timezone)} · ` : ""}
                           {MATCH_STATUS_LABEL[m.status]}
                         </span>
                       </Link>
                     </li>
                   ))}
                 </ul>
-                <p className="text-xs text-muted-foreground">Abre un partido para proponer horario y apartar la cancha.</p>
+                <p className="text-xs text-muted-foreground">Abre un partido para proponer horario, apartar la cancha y subir el resultado.</p>
               </>
             ) : (
               <p className="text-sm text-muted-foreground">No juegas en esta ronda.</p>

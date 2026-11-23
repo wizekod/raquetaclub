@@ -3,9 +3,10 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import type { EntryStatus, RoundRow, Tables, TournamentRow } from "@/lib/supabase/database.types";
 import { fullName } from "@/lib/utils";
-import { todayInTz } from "@/lib/availability/tz";
+import { todayInTz, zonedDateAndMinutes } from "@/lib/availability/tz";
 
-import { parseConfig } from "./config";
+import { parseConfig, type TournamentConfig } from "./config";
+import { computeStandings, type StandingRow } from "./standings";
 import { nextRoundDraft } from "./rounds";
 
 /**
@@ -158,4 +159,35 @@ export async function suggestedRound(tournament: { id: string; starts_on: string
     config: parseConfig(tournament.config),
     timeZone,
   });
+}
+
+export type TableRow = StandingRow & { name: string; movement: "up" | "down" | "stay" | "out" | null };
+
+/**
+ * Tabla de cada grupo de la ronda. Cerrada: la foto congelada
+ * (`standings_snapshots`, con movimientos). Activa: en vivo con el motor,
+ * contando sólo resultados confirmados.
+ */
+export async function getRoundTables(detail: RoundDetail, config: TournamentConfig, timeZone: string): Promise<Map<string, TableRow[]>> {
+  const out = new Map<string, TableRow[]>();
+  const nameOf = new Map(detail.groups.flatMap((g) => g.members.map((m) => [m.entry_id, m.name] as const)));
+
+  if (detail.round.status === "closed") {
+    const supabase = await createClient();
+    const { data } = await supabase.from("standings_snapshots").select("*").eq("round_id", detail.round.id).order("position");
+    for (const s of data ?? []) {
+      const row: TableRow = { ...s, bonus: Number(s.bonus), points: Number(s.points), name: nameOf.get(s.entry_id) ?? "Jugador" };
+      out.set(s.group_id, [...(out.get(s.group_id) ?? []), row]);
+    }
+    return out;
+  }
+
+  for (const g of detail.groups) {
+    const ms = detail.matches
+      .filter((m) => m.group_id === g.id)
+      .map((m) => ({ ...m, played_on: m.scheduled_at || m.reported_at ? zonedDateAndMinutes((m.scheduled_at ?? m.reported_at)!, timeZone).date : null }));
+    const rows = computeStandings(g.members.map((m) => m.entry_id), ms, detail.round.starts_on, config);
+    out.set(g.id, rows.map((r) => ({ ...r, name: nameOf.get(r.entry_id) ?? "Jugador", movement: null })));
+  }
+  return out;
 }
