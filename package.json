@@ -9,7 +9,8 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "dev:lan": "node --env-file=.env.local scripts/dev-lan.mjs",
-    "db:check": "node supabase/tests/check-migrations.mjs"
+    "db:check": "node supabase/tests/check-migrations.mjs",
+    "db:types": "npx supabase gen types typescript --remote > lib/supabase/database.types.ts.new && sed -n '/^\\/\\/ \u2500\u2500 Alias de la app/,$p' lib/supabase/database.types.ts > .types-alias.tmp && cat lib/supabase/database.types.ts.new .types-alias.tmp > lib/supabase/database.types.ts && rm lib/supabase/database.types.ts.new .types-alias.tmp"
   },
   "engines": {
     "node": "22.x"

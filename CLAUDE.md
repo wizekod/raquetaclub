@@ -76,7 +76,7 @@ Torneos:
 **Contacto de jugadores**: `authenticated` no tiene GRANT sobre `profiles.email`, `phone` ni `phone_key`. Se leen por la vista `profile_contacts`. Uno mismo, el admin y el superadmin ven todo; un rival con partido en común ve solo el teléfono, para acordar horario. El DAL usa `PROFILE_COLUMNS` (`lib/auth/dal.ts`): nunca `select("*")` sobre `profiles`.
 
 **Alta de usuarios** (`handle_new_user`):
-- Invitación del servidor: `app_metadata.invited_role` + `club_id`. Es de confianza porque solo la escribe service_role.
+- Invitación del servidor: `app_metadata.invited_role` + `club_id`. Es de confianza porque solo la escribe service_role. GoTrue escribe el `app_metadata` en un UPDATE posterior al INSERT, así que la aplica el trigger `handle_user_invitation` (AFTER UPDATE), solo si el perfil aún no tiene club.
 - Autorregistro en `/{slug}/registro`: `user_metadata.club_id`. Siempre da el rol `player`.
 - Registro sin club: `club_admin` sin club, que solo puede pasar por `/onboarding`.
 
@@ -174,6 +174,7 @@ Crons por pg_cron → `/api/cron/*`: recordatorios de partido (24 h / 2 h), reco
 
 ## 9. Verificación
 
+- `./qa/run.sh`: suite E2E contra el Supabase real, con usuarios de verdad (GoTrue + PostgREST). Detecta lo que PGlite no puede imitar.
 - `npm run db:check`: aplica las migraciones en PGlite (Postgres WASM, sin Docker) y corre ~50 comprobaciones de RLS, guardas y constraints (`supabase/tests/check-migrations.mjs`). Toda migración nueva añade ahí sus casos.
 
 - Tests unitarios del motor (`lib/tournaments/*`): generación RR de 5 jugadores = 10 partidos; puntos y bonus de cada caso de las bases; ascensos y descensos en el grupo 1 y en el último; desempates; expulsión por 2 rondas sin jugar.
@@ -191,11 +192,12 @@ Crons por pg_cron → `/api/cron/*`: recordatorios de partido (24 h / 2 h), reco
   - `lib/security/*`, `lib/storage/media.ts` (logos, reglamentos y avatares por jugador), `lib/players/phone.ts`, `lib/clubs/{slug,constants}.ts`.
   - `lib/notifications/{email,whatsapp,push}.ts`, con las plantillas de WhatsApp del torneo.
   - `lib/stripe/client.ts`, `lib/pwa/*`, `lib/availability/tz.ts`, `components/ui/*`, `app/auth/{callback,confirm}`, PWA (`public/sw.js`, manifest) y `qa/lib.mjs`.
-- [X] Migraciones §4 con RLS + GRANTs explícitos + storage + semilla de planes, validadas con `npm run db:check` (49/49).
-- [X] `lib/supabase/database.types.ts`: escrito a mano con el formato de `supabase gen types`; se regenera al enlazar el proyecto.
+- [X] Migraciones §4 con RLS + GRANTs explícitos + storage + semilla de planes. Validadas con `npm run db:check` (52/52) y aplicadas al proyecto `pjyleuqzqwzhsmrphyxf`. La prueba con usuarios reales `./qa/run.sh fase0-smoke` pasa 15/15.
+- [X] `lib/supabase/database.types.ts`: generado desde el proyecto real. Se regenera con `npm run db:types`, que conserva los alias del final.
 - [X] `npm run typecheck`, `lint` y `build` en verde (el build requiere las variables de `.env.example`).
-- [ ] Crear el proyecto Supabase, `supabase link` + `db push` y regenerar tipos (pasos en `supabase/README.md`). Acción de Carlos.
-- [ ] Repo en GitHub + Vercel + variables de entorno. Acción de Carlos.
+- [X] Proyecto Supabase creado, enlazado y con las migraciones aplicadas. Ojo: `db push` necesita `--remote`, porque sin él la CLI apunta al stack local.
+- [X] Repo en GitHub (`wizekod/raquetaclub`).
+- [ ] Vercel + variables de entorno + dominio. Acción de Carlos.
 
 Quedan pendientes de copiar, cada uno junto con la feature que lo usa en la Fase 1 (dependen del dominio):
 - pantallas de login, registro y recuperar contraseña, y Mi cuenta → paso 1;

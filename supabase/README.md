@@ -27,11 +27,9 @@ con cada migración nueva y añadir ahí sus casos.
    ```bash
    npx supabase login
    npx supabase link --project-ref <REFERENCE_ID>
-   npx supabase db push
-   npx supabase gen types typescript --linked > lib/supabase/database.types.ts
+   npx supabase db push --remote     # sin --remote apunta al stack local (Docker)
+   npm run db:types                  # regenera tipos y conserva los alias de la app
    ```
-
-   Al regenerar los tipos, conserva el bloque "Alias de la app" del final.
 
 3. Copia a `.env.local` (Project Settings → API): `NEXT_PUBLIC_SUPABASE_URL`,
    `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.

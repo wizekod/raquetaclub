@@ -79,6 +79,16 @@ ok((await prof(p1)).phone_key === "+523312345678", "phone_key nacional → E.164
 ok((await prof(p2)).phone_key === "+523387654321", "phone_key internacional");
 ok((await prof(sneaky)).role === "player", "invited_role en user_metadata se ignora");
 ok((await prof(bogus)).role === "player" && (await prof(bogus)).club_id === null, "club_id basura → player sin club");
+// GoTrue inserta el usuario y escribe app_metadata en un UPDATE posterior.
+const gotrue = await mk("gotrue@x.com");
+await q(`update auth.users set raw_app_meta_data = $2 where id=$1`, [gotrue, { provider: "email", invited_role: "club_admin", club_id: A }]);
+ok((await prof(gotrue)).role === "club_admin" && (await prof(gotrue)).club_id === A, "invitación vía UPDATE (como GoTrue) → club_admin del club");
+const gotrueP = await mk("gotrue-p@x.com");
+await q(`update auth.users set raw_app_meta_data = $2 where id=$1`, [gotrueP, { invited_role: "player", club_id: A }]);
+ok((await prof(gotrueP)).role === "player" && (await prof(gotrueP)).club_id === A, "invitación de jugador vía UPDATE");
+await q(`update auth.users set raw_app_meta_data = $2 where id=$1`, [p1, { invited_role: "club_admin", club_id: B }]);
+ok((await prof(p1)).role === "player" && (await prof(p1)).club_id === A, "una invitación no mueve a quien ya tiene club");
+await q(`delete from auth.users where id in ($1, $2)`, [gotrue, gotrueP]);
 await q(`update auth.users set email='ana@x.com' where id=$1`, [p1]);
 ok((await prof(p1)).email === "ana@x.com", "cambio de correo se sincroniza");
 
