@@ -1,0 +1,17 @@
+{
+  "name": "RaquetaClub",
+  "short_name": "RaquetaClub",
+  "description": "Tu club, tus torneos y tus partidos.",
+  "id": "/jugador",
+  "start_url": "/jugador",
+  "scope": "/",
+  "display": "standalone",
+  "lang": "es",
+  "background_color": "#ffffff",
+  "theme_color": "#1f8a4c",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
