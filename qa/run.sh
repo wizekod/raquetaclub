@@ -17,7 +17,7 @@ if [ $# -gt 0 ]; then
   SCRIPTS=""
   for n in "$@"; do SCRIPTS="$SCRIPTS qa/$n.mjs"; done
 else
-  SCRIPTS=$(ls qa/*.mjs | grep -v '/lib\.mjs$')
+  SCRIPTS=$(ls qa/*.mjs | grep -vE '/(lib|app)\.mjs$')
 fi
 
 TOTAL_PASS=0; TOTAL_FAIL=0; FAILED=""
