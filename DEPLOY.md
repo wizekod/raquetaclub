@@ -81,8 +81,45 @@ El tick, en orden:
    hay disputas, no cierra y avisa una vez al día.
 3. Manda recordatorios 24 h y 2 h antes de cada partido agendado.
 
-## 4. Pendiente (pasos siguientes)
-- Turnstile y Stripe: se documentan al activarlos.
+## 4. Turnstile (anti-bots en los registros)
+Protege `/registro` (dueño de club) y `/{slug}/registro` (jugador). El login
+ya tiene su propio límite de intentos por IP. Sin llaves el widget no aparece
+y la verificación se omite.
+
+1. Cloudflare → *Turnstile* → *Add widget*: nombre "RaquetaClub", dominios
+   `raquetaclub.com` y `www.raquetaclub.com` (más el `*.vercel.app` si usas
+   las previews), modo *Managed*.
+2. En Vercel (Production): `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (Site Key) y
+   `TURNSTILE_SECRET_KEY` (Secret Key). Redeploy: la Site Key se incrusta en
+   el build.
+3. **No** las pongas en `.env.local`: la suite `qa/` envía los formularios sin
+   navegador y fallaría el registro.
+4. Comprobar: abre `/{slug}/registro` en el celular; debe salir la casilla de
+   Cloudflare y el registro debe completarse.
+
+## 5. Lista de lanzamiento
+- [ ] Migraciones aplicadas (`npx supabase migration list --remote`: local = remoto).
+- [ ] Vercel (Production) con todas las variables de `.env.example`, salvo
+      Stripe y WhatsApp (en pausa). `NEXT_PUBLIC_APP_URL=https://www.raquetaclub.com`.
+- [ ] Supabase Auth: Site URL y Redirect URLs con el dominio final (§1).
+- [ ] Supabase Auth: plantillas de correo (§1) y SMTP de Resend (§1).
+- [ ] Vault: `app_url` y `cron_secret` (§3); `net._http_response` responde 200.
+- [ ] Turnstile (§4).
+- [ ] Tu cuenta de superadmin (§1) y el club piloto con el plan Pro
+      (`/superadmin/clubes/…`).
+- [ ] En tu celular: instala la PWA (Compartir → "Agregar a inicio" en
+      iPhone), entra, activa los avisos en *Mi cuenta* y verifica que llega un
+      push (por ejemplo, proponiéndote un horario desde otra cuenta).
+- [ ] Correo real: invita a un jugador con tu otro correo y confirma que
+      llegan la invitación (Supabase/Resend) y un aviso de la app.
+- [ ] Suite completa contra producción con datos de prueba (se limpia sola):
+      `QA_APP_URL=https://www.raquetaclub.com ./qa/run.sh` (usa el mismo
+      `CRON_SECRET` de `.env.local`). Con Turnstile activo, los checks que
+      envían los formularios de registro fallan: es lo esperado.
+
+## 6. Pendiente (pospuesto)
+- Stripe: cobro de suscripciones, webhook y MRR real. Hoy el plan se asigna a
+  mano en `/superadmin`.
 
 ### WhatsApp (pospuesto)
 El código ya está listo pero apagado: por ahora los avisos van solo por correo

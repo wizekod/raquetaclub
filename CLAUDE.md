@@ -304,4 +304,9 @@ Quedan pendientes de copiar, cada uno junto con la feature que lo usa en la Fase
   - App: `lib/clubs/plan.ts` (`getPlanUsage`, `planLimitError`) avisa antes en altas, registro (`/{slug}/registro` muestra "sin lugares") y torneos; el plan y su uso salen en el Inicio del club. `requireRole` manda a `/auth/suspendido`. El cron se salta los clubes suspendidos.
   - Pendiente: Stripe (cobro, webhook, MRR real), impersonar en modo lectura.
   - QA: `./qa/run.sh superadmin` (26 checks). Suite completa 225/225.
-- [ ] 10. QA E2E + deploy
+- [ ] 10. QA E2E + deploy. Lo automatizable está hecho; falta lo manual de la lista de lanzamiento (`DEPLOY.md` §5).
+  - [X] `./qa/run.sh temporada` (36 checks): 15 jugadores, 3 grupos y 3 rondas de punta a punta. Publicación por el panel, resultados por las RPCs (uno por default), autoconfirmación al cerrar, cierre por el cron, tablas y movimientos esperados, baja tras 2 rondas sin jugar, nuevo inscrito al grupo más bajo, fin de torneo y premios.
+  - [X] `./qa/run.sh seguridad` (41 checks) contra la base real: anónimo, jugador de otro club, jugador del partido (sólo por RPC; ni helpers internos ni columnas privilegiadas; contacto del rival sin correo) y admin (ni otro club, ni su plan, ni superadmin), más Storage.
+  - [X] Suite completa: 302/302.
+  - [ ] Turnstile: llaves de Cloudflare en Vercel (`DEPLOY.md` §4).
+  - [ ] Lista de lanzamiento (`DEPLOY.md` §5): variables, Auth, Vault, superadmin, club piloto con Pro, PWA y push en el celular, correo real.
