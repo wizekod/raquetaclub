@@ -81,6 +81,7 @@ export function ConfigForm({
               </NativeSelect>
             </div>
             {n("match_minutes", "Duración del partido (min)", c.match_minutes, "15", "Tiempo que se aparta la cancha")}
+            {n("auto_confirm_hours", "Autoconfirmar resultado (h)", c.auto_confirm_hours, "1", "Si el rival no responde. 0 = nunca")}
             <TextField
               id="cfg-deadline_time"
               name="deadline_time"

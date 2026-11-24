@@ -7,7 +7,6 @@ import type { SendResult } from "@/lib/notifications/email";
  * texto a registrar está en DEPLOY.md.
  */
 export const WHATSAPP_TEMPLATES = {
-  partido_publicado: 5, // nombre, club, torneo, rival, enlace del partido
   propuesta_horario: 6, // nombre, club, rival, fecha y hora, cancha, enlace
   horario_confirmado: 6, // nombre, club, rival, fecha y hora, cancha, enlace
   recordatorio_partido: 6, // idem

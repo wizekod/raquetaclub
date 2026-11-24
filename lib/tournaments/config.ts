@@ -53,6 +53,8 @@ export const configSchema = z.object({
     .prefault({}),
   /** Duración con la que se aparta la cancha. La lee también `propose_slot` en SQL. */
   match_minutes: z.number().int().min(30).max(240).default(90),
+  /** Horas para que un resultado sin respuesta del rival se confirme solo. 0 = nunca. */
+  auto_confirm_hours: z.number().int().min(0).max(240).default(48),
   next_round_publish_day: z.number().int().min(1).max(28).default(2),
   no_show_minutes: z.number().int().min(0).max(60).default(15),
   /** Rondas seguidas sin jugar para la baja automática. 0 = nunca. */

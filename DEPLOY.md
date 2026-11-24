@@ -55,7 +55,49 @@ Variables de entorno: las de `.env.example`. Mínimo para arrancar:
 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
 `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_APP_URL`.
 
-## 3. Pendiente (pasos siguientes)
-- Resend + dominio, WhatsApp (plantillas en `lib/notifications/whatsapp.ts`),
-  Turnstile, VAPID, Stripe, cron (pg_cron + Vault): se documentan al activar
-  cada uno.
+## 3. Avisos y cron (paso 8)
+
+### Variables en Vercel
+Copiar de `.env.local` a Vercel (Production) y redeploy:
+- `RESEND_API_KEY`, `RESEND_FROM_EMAIL`: correos.
+- `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`: push.
+  Las llaves deben ser las mismas en todos los entornos: si cambian, los
+  dispositivos ya suscritos dejan de recibir.
+- `CRON_SECRET`: lo exige `/api/cron/tick`.
+
+### Cron (pg_cron → /api/cron/tick, cada 30 min)
+La migración `…_cron_tick.sql` agenda el job. Le faltan la URL y el secreto,
+que viven en Supabase Vault. En Supabase → SQL Editor, una vez:
+```sql
+select vault.create_secret('https://www.raquetaclub.com', 'app_url');
+select vault.create_secret('<el CRON_SECRET de Vercel>', 'cron_secret');
+```
+Comprobar: `select * from cron.job_run_details order by start_time desc limit 5;`
+y la respuesta en `select status_code, content from net._http_response order by created desc limit 5;`.
+
+El tick, en orden:
+1. Autoconfirma los resultados sin respuesta tras `auto_confirm_hours` (48 h).
+2. Cierra las rondas con la fecha límite vencida y avisa a los admins. Si
+   hay disputas, no cierra y avisa una vez al día.
+3. Manda recordatorios 24 h y 2 h antes de cada partido agendado.
+
+## 4. Pendiente (pasos siguientes)
+- Turnstile y Stripe: se documentan al activarlos.
+
+### WhatsApp (pospuesto)
+El código ya está listo pero apagado: por ahora los avisos van solo por correo
+y push. Para activarlo (solo clubes con plan que incluya WhatsApp):
+Sin `WHATSAPP_ACCESS_TOKEN` y `WHATSAPP_PHONE_NUMBER_ID` el canal se omite.
+Plantillas a registrar en Meta Business Manager (categoría Utility, idioma
+`es`), con estos nombres y variables en orden:
+
+| Plantilla | Texto sugerido |
+|---|---|
+| `ronda_publicada` | Hola {{1}}, {{2}} publicó la nueva ronda de {{3}}. Juegas en el {{4}}. Agenda tus partidos aquí: {{5}} |
+| `propuesta_horario` | Hola {{1}}, en {{2}} {{3}} te propone jugar el {{4}} en {{5}}. Acepta o propón otro horario: {{6}} |
+| `horario_confirmado` | Hola {{1}}, tu partido en {{2}} contra {{3}} quedó agendado el {{4}} en {{5}}. Detalles: {{6}} |
+| `recordatorio_partido` | Hola {{1}}, te recordamos tu partido en {{2}} contra {{3}} el {{4}} en {{5}}. Si no puedes, cancela aquí: {{6}} |
+| `resultado_pendiente` | Hola {{1}}, en {{2}} {{3}} subió el resultado de su partido: {{4}}. Confírmalo o dispútalo: {{5}} |
+
+Los avisos sin plantilla (propuesta rechazada, reserva cancelada, disputas y
+cierres de ronda a los admins) van solo por correo y push.

@@ -22,6 +22,11 @@ export async function sendEmail(args: SendEmailArgs): Promise<SendResult> {
     return { status: "skipped", reason: "RESEND_API_KEY/RESEND_FROM_EMAIL no configurados" };
   }
   if (!args.to) return { status: "skipped", reason: "sin destinatario" };
+  // Dominios reservados (RFC 2606): cuentas de prueba (QA). Mandarles correo
+  // sólo genera rebotes que dañan la reputación del dominio en Resend.
+  if (/@(example\.(com|org|net)|[^@]+\.(test|example|invalid))$/i.test(args.to)) {
+    return { status: "skipped", reason: "dominio de prueba" };
+  }
 
   try {
     const res = await fetch("https://api.resend.com/emails", {

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 
 import { createClient } from "@/lib/supabase/server";
@@ -10,6 +11,19 @@ import { getMyClubAsAdmin } from "@/lib/clubs/queries";
 import type { TablesUpdate } from "@/lib/supabase/database.types";
 import { parseConfig } from "@/lib/tournaments/config";
 import { validateScore } from "@/lib/tournaments/scoring";
+import {
+  onBookingCancelled,
+  onResultDisputed,
+  onResultReported,
+  onSlotAccepted,
+  onSlotDeclined,
+  onSlotProposed,
+} from "@/lib/notifications/events";
+
+/** Avisos después de responder: no retrasan la acción y un fallo no la rompe. */
+function later(task: () => Promise<void>) {
+  after(() => task().catch((e) => console.error("[notify]", e instanceof Error ? e.message : e)));
+}
 
 /**
  * Acciones del link de partido. Todo lo decide la base: las RPCs validan
@@ -52,8 +66,9 @@ export async function proposeSlot(_prev: FormState, formData: FormData): Promise
   if (!matchId) return { error: "Partido no encontrado." };
 
   const supabase = await createClient();
-  const { error } = await supabase.rpc("propose_slot", { p_match: matchId, p_court: courtId!, p_start: start });
+  const { data: proposalId, error } = await supabase.rpc("propose_slot", { p_match: matchId, p_court: courtId!, p_start: start });
   if (error) return rpcError(error);
+  later(() => onSlotProposed(proposalId));
   revalidateMatch(token);
   return { message: "Propuesta enviada. Tu rival tiene que aceptarla para apartar la cancha." };
 }
@@ -68,6 +83,7 @@ export async function respondToProposal(_prev: FormState, formData: FormData): P
   const supabase = await createClient();
   const { error } = await supabase.rpc("respond_slot", { p_proposal: proposalId, p_accept: accept });
   if (error) return rpcError(error);
+  later(() => (accept ? onSlotAccepted(proposalId) : onSlotDeclined(proposalId)));
   revalidateMatch(token);
   return { message: accept ? "¡Listo! Cancha apartada." : "Propuesta rechazada." };
 }
@@ -83,15 +99,18 @@ export async function withdrawProposal(formData: FormData): Promise<void> {
 }
 
 export async function cancelBooking(_prev: FormState, formData: FormData): Promise<FormState> {
-  if (!(await getProfile())) return { error: "Inicia sesión." };
+  const profile = await getProfile();
+  if (!profile) return { error: "Inicia sesión." };
   const token = String(formData.get("token") ?? "");
   const reason = String(formData.get("reason") ?? "").trim().slice(0, 200);
   const matchId = await matchIdByToken(token);
   if (!matchId) return { error: "Partido no encontrado." };
 
   const supabase = await createClient();
+  const { data: booking } = await supabase.from("court_bookings").select("id").eq("match_id", matchId).eq("status", "confirmed").maybeSingle();
   const { error } = await supabase.rpc("cancel_match_booking", { p_match: matchId, p_reason: reason || null });
   if (error) return rpcError(error);
+  if (booking) later(() => onBookingCancelled(matchId, booking.id, profile.id));
   revalidateMatch(token);
   return { message: "Reserva cancelada. El partido vuelve a estar por agendar." };
 }
@@ -160,6 +179,7 @@ export async function reportResult(_prev: FormState, formData: FormData): Promis
 
   const { error } = await supabase.rpc("report_result", { p_match: m.id, p_result: result, p_score: score });
   if (error) return rpcError(error);
+  later(() => onResultReported(m.id));
   revalidateMatch(token);
   return { message: "Resultado enviado. Tu rival tiene que confirmarlo." };
 }
@@ -186,6 +206,7 @@ export async function disputeResult(_prev: FormState, formData: FormData): Promi
   const supabase = await createClient();
   const { error } = await supabase.rpc("dispute_result", { p_match: matchId, p_reason: reason });
   if (error) return rpcError(error);
+  later(() => onResultDisputed(matchId));
   revalidateMatch(token);
   return { message: "Disputa enviada. El administrador del club lo resolverá." };
 }

@@ -129,7 +129,7 @@ Crons por pg_cron → `/api/cron/*`: recordatorios de partido (24 h / 2 h), reco
 5. Link de partido: proponer/aceptar horario + reserva de cancha.
 6. Resultados: reportar, confirmar, disputar, corregir (admin).
 7. Rankings: tabla por grupo, escalera completa por nivel, historial de movimientos, perfil del jugador.
-8. Notificaciones: email + WhatsApp (plantillas `partido_publicado`, `propuesta_horario`, `horario_confirmado`, `recordatorio_partido`, `resultado_pendiente`, `ronda_publicada`) + push.
+8. Notificaciones: email + push; WhatsApp pospuesto (código listo y apagado; plantillas `propuesta_horario`, `horario_confirmado`, `recordatorio_partido`, `resultado_pendiente`, `ronda_publicada`).
 9. Superadmin y Stripe (planes por número de jugadores activos o de torneos).
 10. QA E2E y deploy.
 
@@ -286,6 +286,13 @@ Quedan pendientes de copiar, cada uno junto con la feature que lo usa en la Fase
     - Perfil: récord, por ronda, partidos y cara a cara.
   - Jugador: "Rankings" en el menú; "Escalera completa" y "Mi historial" en su torneo.
   - QA: sección "rankings" en `./qa/run.sh resultados` (35 checks en total).
-- [ ] 8. Notificaciones + cron
+- [X] 8. Notificaciones + cron.
+  - `lib/notifications/dispatch.ts`: `notify`/`notifyMany` por email y push, idempotente por `dedupe_key` + canal ("sent"/"skipped" no se repiten; "failed" se reintenta). Todo queda en `notifications_log`, con el motivo de lo omitido. Los correos a dominios de prueba (`@example.com`, `.test`) se omiten.
+  - `lib/notifications/events.ts`: ronda publicada (a cada jugador, con su grupo), propuesta, horario confirmado o rechazado, reserva cancelada, resultado por confirmar, disputa (a los admins), recordatorios 24 h / 2 h. Las server actions los mandan con `after()`.
+  - WhatsApp pospuesto: el código está listo pero apagado (sin credenciales de Meta, y solo si el plan del club tiene `features.whatsapp`). Plantillas en `DEPLOY.md` §4.
+  - Cron (`…_cron_tick.sql`): pg_cron cada 30 min → `private.call_tick_cron()` → `GET /api/cron/tick` con `CRON_SECRET`, leyendo `app_url` y `cron_secret` de Vault. Sin secretos no hace nada. `close_round` y `save_round_groups` aceptan también `is_server_role()`.
+  - `lib/cron/tasks.ts`: autoconfirmación tras `auto_confirm_hours` (48 h, editable en las reglas); cierre de rondas vencidas con `closeRoundWith` (`lib/tournaments/close-round.ts`, el mismo del botón del admin) y aviso a los admins (si hay disputas no cierra y avisa una vez al día); recordatorios.
+  - Pendiente: recordatorio de "aún no agendas" a mitad de mes y autopublicar la siguiente ronda.
+  - QA: `./qa/run.sh avisos` (21 checks). Suite completa 199/199.
 - [ ] 9. Superadmin + Stripe
 - [ ] 10. QA E2E + deploy

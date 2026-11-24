@@ -3,7 +3,7 @@
  *
  * Levanta Postgres en WASM (PGlite), crea stubs mínimos de lo que aporta
  * Supabase (roles anon/authenticated/service_role, auth.users, auth.uid(),
- * storage.buckets/objects/foldername), aplica supabase/migrations/*.sql en
+ * storage.buckets/objects/foldername, pg_cron, pg_net y Vault), aplica supabase/migrations/*.sql en
  * orden y comprueba el comportamiento: alta de usuarios, RLS por rol y club,
  * guardas de columnas, FK compuestas, anti-solape de reservas y storage.
  *
@@ -39,10 +39,20 @@ create table storage.objects (bucket_id text, name text);
 alter table storage.objects enable row level security;
 create function storage.foldername(name text) returns text[] language sql immutable as
   $$ select (string_to_array(name, '/'))[1:array_length(string_to_array(name, '/'),1)-1] $$;
+-- pg_cron / pg_net / Vault: sólo la superficie que usan las migraciones.
+create schema cron; create schema net; create schema vault;
+create table cron.job (jobname text primary key, schedule text, command text);
+create function cron.schedule(n text, s text, c text) returns bigint language sql as
+  $$ insert into cron.job values (n, s, c) on conflict (jobname) do update set schedule = s, command = c; select 1::bigint $$;
+create function net.http_get(url text, headers jsonb, timeout_milliseconds int) returns bigint language sql as $$ select 1::bigint $$;
+create table vault.decrypted_secrets (name text, decrypted_secret text);
 `);
 
+// PGlite no trae pg_cron ni pg_net: se quitan sus CREATE EXTENSION (los stubs de arriba los sustituyen).
+const stripExtensions = (sql) => sql.replace(/create extension if not exists (pg_cron|pg_net)[^;]*;/gi, "");
+
 for (const f of fs.readdirSync(dir).filter((f) => f.endsWith(".sql")).sort()) {
-  try { await db.exec(fs.readFileSync(path.join(dir, f), "utf8")); console.log("✓ aplicada", f); }
+  try { await db.exec(stripExtensions(fs.readFileSync(path.join(dir, f), "utf8"))); console.log("✓ aplicada", f); }
   catch (e) { console.log("✗", f, e.message); process.exit(1); }
 }
 
@@ -387,6 +397,17 @@ ok(rr2.status === "closed" && nr.number === 2 && nr.status === "draft", "ronda c
 ok((await q(`select count(*)::int n from group_members where round_id=$1`, [next]))[0].n === 2, "con sus grupos");
 await as(admin);
 ok(await err(`select public.close_round($1, $2, $3, $4, $5)`, closeArgs) === "55000", "no se cierra dos veces");
+
+console.log("\n# paso 8: cron");
+await reset(); await db.exec(`set role service_role`);
+ok(await err(`select public.save_round_groups($1, $2)`, [next, JSON.stringify([{ level: 1, entries: [x1, x3] }])]) === null, "service_role (cron) puede rearmar grupos");
+await reset();
+ok((await q(`select schedule from cron.job where jobname='raquetaclub-tick'`))[0]?.schedule === "*/30 * * * *", "job de pg_cron cada 30 min");
+await db.exec(`set role authenticated`);
+ok(await err(`select private.call_tick_cron()`) === "42501", "authenticated no dispara el cron");
+await reset();
+await q(`select private.call_tick_cron()`);
+ok(true, "sin secretos en Vault el job no hace nada (no falla)");
 
 console.log("\n# sesiones");
 await reset();
