@@ -7,6 +7,7 @@ import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import type { ProfileRow, UserRole } from "@/lib/supabase/database.types";
 import { roleHome } from "@/lib/auth/roles";
+import { isClubSuspended } from "@/lib/clubs/plan";
 
 /**
  * Data Access Layer de autenticación/autorización (patrón recomendado por
@@ -82,6 +83,11 @@ export async function requireRole(
   if (profile.status !== "active") {
     // No a /login: con sesión, el proxy lo devolvería al panel (bucle).
     redirect("/auth/inactivo");
+  }
+  // Club suspendido por la plataforma: sus miembros no entran (la RLS ya les
+  // oculta todo; esto es para mostrar el aviso en vez de un panel vacío).
+  if (profile.role !== "superadmin" && profile.club_id && (await isClubSuspended(profile.club_id))) {
+    redirect("/auth/suspendido");
   }
   return profile;
 }

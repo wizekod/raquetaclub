@@ -1158,6 +1158,7 @@ export type Database = {
         }
         Returns: string | null
       }
+      club_is_open: { Args: { p_club: string }; Returns: boolean }
       confirm_result: { Args: { p_match: string }; Returns: undefined }
       create_court_block: {
         Args: {

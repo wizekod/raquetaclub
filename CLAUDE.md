@@ -294,5 +294,14 @@ Quedan pendientes de copiar, cada uno junto con la feature que lo usa en la Fase
   - `lib/cron/tasks.ts`: autoconfirmación tras `auto_confirm_hours` (48 h, editable en las reglas); cierre de rondas vencidas con `closeRoundWith` (`lib/tournaments/close-round.ts`, el mismo del botón del admin) y aviso a los admins (si hay disputas no cierra y avisa una vez al día); recordatorios.
   - Pendiente: recordatorio de "aún no agendas" a mitad de mes y autopublicar la siguiente ronda.
   - QA: `./qa/run.sh avisos` (21 checks). Suite completa 199/199.
-- [ ] 9. Superadmin + Stripe
+- [X] 9. Superadmin + límites de plan (Stripe en pausa).
+  - `/superadmin`: métricas (clubes por estado, jugadores activos, torneos sin finalizar, partidos de 30 días, ingreso mensual estimado con el precio de lista) y la lista de clubes con su plan y su uso.
+  - `/superadmin/clubes/[id]`: contacto, uso, plan, estado y fin de la prueba (asignados a mano mientras no hay Stripe), y borrar el club (sólo suspendido y escribiendo su enlace; borra Storage, la fila con sus cascadas y las cuentas de sus miembros).
+  - `/superadmin/planes`: crear y editar planes (precio de referencia, jugadores activos, torneos sin finalizar, WhatsApp). Límite vacío = ilimitado.
+  - Base (`…_plan_limits_and_suspension.sql`):
+    - límites con triggers (`enforce_player_limit`, `enforce_tournament_limit`, error `RC402`), también para service_role y el autorregistro directo contra GoTrue. Club sin plan = sin límites. Bajar de plan no da de baja a nadie.
+    - club suspendido: `club_is_open` en `is_club_admin`, `can_read_club` y `my_entry_in_match`, así que sus miembros no leen, no gestionan y no juegan.
+  - App: `lib/clubs/plan.ts` (`getPlanUsage`, `planLimitError`) avisa antes en altas, registro (`/{slug}/registro` muestra "sin lugares") y torneos; el plan y su uso salen en el Inicio del club. `requireRole` manda a `/auth/suspendido`. El cron se salta los clubes suspendidos.
+  - Pendiente: Stripe (cobro, webhook, MRR real), impersonar en modo lectura.
+  - QA: `./qa/run.sh superadmin` (26 checks). Suite completa 225/225.
 - [ ] 10. QA E2E + deploy

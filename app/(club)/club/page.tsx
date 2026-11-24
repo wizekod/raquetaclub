@@ -3,12 +3,15 @@ import Link from "next/link";
 import { requireMyClub } from "@/lib/clubs/queries";
 import { clientEnv } from "@/lib/env";
 import { listClubMembers } from "@/lib/players/queries";
+import { getPlanUsage, playersFull, tournamentsFull } from "@/lib/clubs/plan";
 import { CopyButton } from "@/components/copy-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function ClubHomePage() {
   const club = await requireMyClub();
-  const members = await listClubMembers(club.id);
+  const [members, plan] = await Promise.all([listClubMembers(club.id), getPlanUsage(club.id)]);
+  const limit = (n: number, max: number | null) => (max == null ? `${n}` : `${n} de ${max}`);
+  const full = playersFull(plan) || tournamentsFull(plan);
   const players = members.filter((m) => m.role === "player");
   const active = players.filter((p) => p.status === "active" && !p.pending).length;
   const pending = players.filter((p) => p.pending).length;
@@ -29,6 +32,20 @@ export default async function ClubHomePage() {
             <Link href="/club/jugadores" className="font-medium text-foreground underline underline-offset-4">
               Ver jugadores
             </Link>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardDescription>Plan</CardDescription>
+            <CardTitle className="text-xl">{plan.planName ?? "Sin límites"}</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-1 text-sm text-muted-foreground">
+            <p>Jugadores activos: {limit(plan.players, plan.maxPlayers)}</p>
+            <p>Torneos sin finalizar: {limit(plan.tournaments, plan.maxTournaments)}</p>
+            {full ? (
+              <p className="text-foreground">Llegaste al límite de tu plan. Para crecer, pide un cambio de plan.</p>
+            ) : null}
           </CardContent>
         </Card>
 

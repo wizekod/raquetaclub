@@ -8,6 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getProfile } from "@/lib/auth/dal";
 import { getMyClubAsAdmin } from "@/lib/clubs/queries";
 import { createClubMember } from "@/lib/players/invite";
+import { getPlanUsage, planLimitError, playersFull } from "@/lib/clubs/plan";
 import {
   checkPhone,
   emailField,
@@ -59,6 +60,13 @@ export async function addPlayer(_prev: FormState, formData: FormData): Promise<F
   const phoneErr = checkPhone(d.phone, club.phone_country_code);
   if (phoneErr) return { fieldErrors: { phone: phoneErr } };
 
+  if (d.role === "player") {
+    const u = await getPlanUsage(club.id);
+    if (playersFull(u)) {
+      return { error: `El plan ${u.planName} del club permite hasta ${u.maxPlayers} jugadores activos. Da de baja a alguien o pide un cambio de plan.` };
+    }
+  }
+
   const r = await createClubMember(
     { email: d.email, firstName: d.firstName, lastName: d.lastName, phone: d.phone, clubId: club.id, role: d.role },
     d.mode === "password" ? d.password : undefined,
@@ -93,6 +101,8 @@ export async function setMemberStatus(profileId: string, status: "active" | "ina
     .eq("club_id", club.id)
     .select("id");
   if (error?.code === "RC422") return { ok: false, error: "El club necesita al menos un administrador activo." };
+  const limit = planLimitError(error);
+  if (limit) return { ok: false, error: limit };
   if (error || !data?.length) return { ok: false, error: "No se pudo actualizar." };
 
   // Al dar de baja se cierran sus sesiones abiertas.
@@ -154,6 +164,8 @@ export async function setMemberRole(profileId: string, role: "player" | "club_ad
     .in("role", ["player", "club_admin"])
     .select("id");
   if (error?.code === "RC422") return { ok: false, error: "El club necesita al menos un administrador activo." };
+  const limit = planLimitError(error);
+  if (limit) return { ok: false, error: limit };
   if (error || !data?.length) return { ok: false, error: "No se pudo cambiar el rol." };
 
   revalidatePath("/club/jugadores");

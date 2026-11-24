@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { clientEnv } from "@/lib/env";
 import { roleHome } from "@/lib/auth/roles";
 import { getPublicClub } from "@/lib/clubs/queries";
+import { getPlanUsage, playersFull } from "@/lib/clubs/plan";
 import {
   checkPhone,
   emailField,
@@ -158,6 +159,9 @@ export async function registerPlayer(_prev: AuthFormState, formData: FormData): 
 
   const club = await getPublicClub(d.slug);
   if (!club) return { error: "Este club no está disponible." };
+  if (playersFull(await getPlanUsage(club.id))) {
+    return { error: `${club.name} ya no tiene lugares para jugadores nuevos. Avísale al club.` };
+  }
 
   const phoneErr = checkPhone(d.phone, club.phone_country_code);
   if (phoneErr) return { fieldErrors: { phone: phoneErr } };

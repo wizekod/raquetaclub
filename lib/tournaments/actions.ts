@@ -10,6 +10,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getProfile } from "@/lib/auth/dal";
 import { getMyClub, getMyClubAsAdmin } from "@/lib/clubs/queries";
 import { emptyToUndefined, type FormState } from "@/lib/forms";
+import { planLimitError } from "@/lib/clubs/plan";
 import { MEDIA_BUCKET, isOwnMediaPath } from "@/lib/storage/media";
 import { Constants, type Json } from "@/lib/supabase/database.types";
 
@@ -73,6 +74,8 @@ export async function createTournament(_prev: FormState, formData: FormData): Pr
     })
     .select("id")
     .single();
+  const limit = planLimitError(error);
+  if (limit) return { error: limit };
   if (error || !data) {
     console.error("[tournaments] create:", error?.message);
     return { error: "No se pudo crear el torneo." };
@@ -134,6 +137,8 @@ export async function updateTournament(_prev: FormState, formData: FormData): Pr
     })
     .eq("id", tournamentId)
     .eq("club_id", club.id);
+  const limit = planLimitError(error);
+  if (limit) return { error: limit };
   if (error) {
     console.error("[tournaments] update:", error.message);
     return { error: "No se pudo guardar el torneo." };

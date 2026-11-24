@@ -14,6 +14,12 @@ import { closeRoundWith } from "@/lib/tournaments/close-round";
 
 const HOUR = 3_600_000;
 
+/** Los clubes suspendidos quedan congelados: ni avisos, ni cierres, ni autoconfirmaciones. */
+async function suspendedClubs(): Promise<Set<string>> {
+  const { data } = await createAdminClient().from("clubs").select("id").eq("status", "suspended");
+  return new Set((data ?? []).map((c) => c.id));
+}
+
 /**
  * Recordatorios de partido: "24h" para los que empiezan en las próximas 24 h
  * (y faltan más de 3 h) y "2h" para los de las próximas 2 h.
@@ -22,12 +28,14 @@ export async function runReminders(now = new Date()): Promise<{ sent: number }> 
   const admin = createAdminClient();
   const { data } = await admin
     .from("court_bookings")
-    .select("id, start_at")
+    .select("id, club_id, start_at")
     .eq("status", "confirmed")
     .gt("start_at", now.toISOString())
     .lte("start_at", new Date(now.getTime() + 24 * HOUR).toISOString());
+  const frozen = await suspendedClubs();
   let sent = 0;
   for (const b of data ?? []) {
+    if (frozen.has(b.club_id)) continue;
     const ahead = Date.parse(b.start_at) - now.getTime();
     const kind = ahead <= 2 * HOUR ? "2h" : ahead > 3 * HOUR ? "24h" : null;
     if (!kind) continue;
@@ -40,8 +48,9 @@ export async function runReminders(now = new Date()): Promise<{ sent: number }> 
 /** Resultados sin respuesta del rival tras `auto_confirm_hours`: se confirman solos. */
 export async function runAutoConfirm(now = new Date()): Promise<{ confirmed: number }> {
   const admin = createAdminClient();
-  const { data: reported } = await admin.from("matches").select("id, tournament_id, round_id, reported_at").eq("status", "reported");
+  const { data: reported } = await admin.from("matches").select("id, club_id, tournament_id, round_id, reported_at").eq("status", "reported");
   if (!reported?.length) return { confirmed: 0 };
+  const frozen = await suspendedClubs();
 
   const [{ data: tournaments }, { data: rounds }] = await Promise.all([
     admin.from("tournaments").select("id, config").in("id", [...new Set(reported.map((m) => m.tournament_id))]),
@@ -52,7 +61,7 @@ export async function runAutoConfirm(now = new Date()): Promise<{ confirmed: num
 
   const due = reported.filter((m) => {
     const h = hoursOf.get(m.tournament_id) ?? 0;
-    return h > 0 && active.has(m.round_id) && m.reported_at && Date.parse(m.reported_at) <= now.getTime() - h * HOUR;
+    return h > 0 && !frozen.has(m.club_id) && active.has(m.round_id) && m.reported_at && Date.parse(m.reported_at) <= now.getTime() - h * HOUR;
   });
   if (!due.length) return { confirmed: 0 };
   const { data } = await admin
@@ -76,9 +85,11 @@ export async function runRoundDeadlines(now = new Date()): Promise<{ closed: num
     .select("id, club_id, tournament_id, name")
     .eq("status", "active")
     .lt("results_deadline", now.toISOString());
+  const frozen = await suspendedClubs();
   let closed = 0;
   let blocked = 0;
   for (const r of rounds ?? []) {
+    if (frozen.has(r.club_id)) continue;
     const [{ data: club }, { data: t }] = await Promise.all([
       admin.from("clubs").select("timezone").eq("id", r.club_id).single(),
       admin.from("tournaments").select("name").eq("id", r.tournament_id).single(),
